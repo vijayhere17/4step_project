@@ -1,5 +1,6 @@
 import { LuPanelLeftDashed } from "react-icons/lu";
 import { MdSupervisorAccount } from "react-icons/md";
+import { useEffect, useState } from "react";
 
 export default function Navbar({
   pageTitle = "Dashboard",
@@ -8,6 +9,44 @@ export default function Navbar({
   const handleSidebarToggle = () => {
     window.dispatchEvent(new CustomEvent("toggle-sidebar"));
   };
+
+  const [stats, setStats] = useState({
+  left_members: 0,
+  right_members: 0,
+});
+
+useEffect(() => {
+  const fetchDashboard = async () => {
+    try {
+      const md =
+        JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+
+      if (!md.user_id) return;
+
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/member/dashboard",
+        {
+          headers: {
+            "X-Auth-Member": md.user_id,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStats({
+          left_members: data.left_members,
+          right_members: data.right_members,
+        });
+      }
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+    }
+  };
+
+  fetchDashboard();
+}, []);
 
   return (
     <div className="bg-white border-b">
@@ -46,11 +85,11 @@ export default function Navbar({
           <div className="text-sm text-gray-600 leading-tight hidden md:block">
             <p>
               <MdSupervisorAccount className="inline mr-1" />
-              Left Members: <span className="font-semibold">1,245</span>
+              Left Members: <span className="font-semibold">{stats.left_members}</span>
             </p>
             <p>
               <MdSupervisorAccount className="inline mr-1" />
-              Right Members: <span className="font-semibold">1,245</span>
+              Right Members: <span className="font-semibold">{stats.right_members}</span>
             </p>
           </div>
 

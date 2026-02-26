@@ -123,7 +123,7 @@ function SignUp() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // read query params to prefill sponsorId / position when user opens referral link
+  
   React.useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -225,7 +225,7 @@ function SignUp() {
         return;
       }
 
-      alert(`Signup Successful\nMember ID: ${data.memberId}`);
+      alert(`Signup Successful\nMember ID: ${data.member.user_id}`);
 
       // store session so user is immediately logged in
       localStorage.setItem("memberSession", "true");
