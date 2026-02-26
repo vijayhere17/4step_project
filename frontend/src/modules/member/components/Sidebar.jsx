@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+
+
 import {
   MdOutlineDashboard,
   MdOutlineLocalShipping,
@@ -16,15 +18,29 @@ import {
 } from "react-icons/fi";
 import { AiTwotoneClockCircle } from "react-icons/ai";
 import { FaRegStar } from "react-icons/fa";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FiRefreshCcw } from "react-icons/fi";
 import { IoDocumentTextOutline } from "react-icons/io5";
 import { CiMail } from "react-icons/ci";
 import { FiLogOut } from "react-icons/fi";
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+  localStorage.removeItem("memberSession");
+  localStorage.removeItem("memberData");
+  navigate("/member/signin", { replace: true });
+};
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const [member, setMember] = useState(null);
+  useEffect(() => {
+  const storedMember = localStorage.getItem("memberData");
+  if (storedMember) {
+    setMember(JSON.parse(storedMember));
+  }
+}, []);
 
   // Dashboard
   const isDashboard = location.pathname === "/member/dashboard";
@@ -693,26 +709,44 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        <div className="border-t bg-gray-100 px-4 py-3 items-end">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600">
-                NJ
-              </div>
+     <div className="border-t bg-gray-100 px-4 py-3">
+  <div className="flex items-center justify-between">
 
-              <div className="leading-tight">
-                <p className="text-sm font-medium text-gray-800">
-                  Nayak Jenatiben
-                </p>
-                <p className="text-xs text-gray-500">FC7981495</p>
-              </div>
-            </div>
+    <div className="flex items-center gap-3">
 
-            <button className="p-2 rounded-md hover:bg-gray-200 transition-all duration-200">
-              <FiLogOut className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-        </div>
+      {/* Avatar */}
+      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600">
+        {member?.fullname
+          ? member.fullname
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+          : "NA"}
+      </div>
+
+      {/* Name + ID */}
+      <div className="leading-tight">
+        <p className="text-sm font-medium text-gray-800">
+          {member?.fullname || ""}
+        </p>
+        <p className="text-xs text-gray-500">
+          {member?.user_id ? `MLM-${member.user_id}` : ""}
+        </p>
+      </div>
+
+    </div>
+
+    {/* Logout */}
+    <button
+      onClick={handleLogout}
+      className="p-2 rounded-md hover:bg-gray-200 transition-all duration-200"
+    >
+      <FiLogOut className="w-5 h-5 text-gray-600" />
+    </button>
+
+  </div>
+</div>
       </div>
     </>
   );

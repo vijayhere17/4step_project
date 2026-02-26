@@ -21,5 +21,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+        // create/update a single main member for referral testing
+        $this->call(\Database\Seeders\MainMemberSeeder::class);
     }
 }

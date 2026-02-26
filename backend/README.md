@@ -57,3 +57,55 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Initial main member (required for referral links)
+
+To enable referral links immediately you should create one active "main" member record in the `members` table. This user will act as an initial sponsor so your public referral links contain a valid `placement_id`.
+
+Recommended: use Tinker to create the member (will generate `user_id` automatically):
+
+```bash
+cd backend
+php artisan tinker
+
+# inside tinker
+use App\Models\Member;
+use Illuminate\Support\Facades\Hash;
+
+Member::create([
+	'fullname' => 'Main Sponsor',
+	'dob' => '1980-01-01',
+	'gender' => 'other',
+	'mobile_no' => '9999999999',
+	'email' => 'main@example.com',
+	'password' => Hash::make('ChangeMe123'),
+	'status' => 1, // active
+]);
+```
+
+When created, check the created `user_id` and use it as the `placement_id` in the referral links shown in the dashboard. You can also activate any existing member by setting `status = 1` and optionally `activation_date = now()` in the DB.
+
+If you prefer SQL, insert a row into `members` and set `status` to `1` after generating a bcrypt password hash.
+
+### Quick: create main member with seeder
+
+You can create/update the main developer member automatically with the seeder. Optionally set these env vars in `backend/.env` to control the seeded values:
+
+- `MAIN_MEMBER_USER_ID` (default `MAINDEV001`)
+- `MAIN_MEMBER_MOBILE` (default `9999999999`)
+- `MAIN_MEMBER_EMAIL` (default `main@example.com`)
+- `MAIN_MEMBER_PASSWORD` (default `ChangeMe123`)
+- `MAIN_MEMBER_FULLNAME`, `MAIN_MEMBER_DOB`, `MAIN_MEMBER_GENDER`
+
+Run the seeder:
+
+```bash
+cd backend
+php artisan db:seed --class=\Database\Seeders\MainMemberSeeder
+```
+
+Or run all seeders (includes the main member):
+
+```bash
+php artisan db:seed
+```

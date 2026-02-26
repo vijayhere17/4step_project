@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import MemberLayout from "./MemberLayout";
+import SignIn from "./pages/SignIn";
+import SignUp from "./pages/SignUp";
 
 import Dashboard from "./pages/Dashboard";
 import MyProfile from "./pages/MyProfile";
@@ -38,7 +40,12 @@ import Downloads from "./pages/Downloads";
 
 export default function MemberRoutes() {
   return (
-    
+    <>
+      {/* public auth pages */}
+      <Route path="/member/signin" element={<SignIn />} />
+      <Route path="/member/signup" element={<SignUp />} />
+
+      {/* protected member area under layout */}
       <Route path="/member" element={<MemberLayout />}>
         <Route index element={<Navigate to="dashboard" />} />
 
@@ -67,16 +74,22 @@ export default function MemberRoutes() {
         <Route path="earning-repurchase" element={<RepurchaseBonus />} />
         <Route path="earning-royalty" element={<RoyaltyClubBonus />} />
         <Route path="earning-branch" element={<BranchTurnoverBonus />} />
-        <Route path="earning-monitoring" element={<BusinessMonitoringBonus />} />
+        <Route
+          path="earning-monitoring"
+          element={<BusinessMonitoringBonus />}
+        />
         <Route path="earning-leadership" element={<LeadershipRankBonus />} />
         <Route path="earning-history" element={<EarningHistory />} />
-        <Route path="withdrawal-report" element={<EarningBalanceWithdrawal />} />
+        <Route
+          path="withdrawal-report"
+          element={<EarningBalanceWithdrawal />}
+        />
         <Route path="income-summary" element={<IncomeSummary />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="outbox" element={<Outbox />} />
         <Route path="compose" element={<Compose />} />
         <Route path="downloads" element={<Downloads />} />
       </Route>
-   
+    </>
   );
 }

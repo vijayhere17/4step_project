@@ -11,9 +11,7 @@ export default function Navbar({
 
   return (
     <div className="bg-white border-b">
-
       <div className="h-16 px-4 sm:px-6 flex justify-between items-center gap-3">
-
         {/* Left */}
         <div className="min-w-0">
           <h1 className="text-lg font-semibold text-gray-700 flex items-center gap-2 truncate">
@@ -30,13 +28,21 @@ export default function Navbar({
           </h1>
 
           <p className="text-xs text-gray-400 truncate">
-            CUSTOMER ID: MLM-00484
+            CUSTOMER ID:{" "}
+            {(() => {
+              try {
+                const md =
+                  JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+                return md.user_id ? `MLM-${md.user_id}` : "-";
+              } catch {
+                return "-";
+              }
+            })()}
           </p>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-3 sm:gap-6">
-
           <div className="text-sm text-gray-600 leading-tight hidden md:block">
             <p>
               <MdSupervisorAccount className="inline mr-1" />
@@ -56,25 +62,38 @@ export default function Navbar({
             />
             <div className="text-sm leading-tight hidden sm:block">
               <p className="font-semibold text-gray-700 truncate">
-                Swapnil Solanki
+                {(() => {
+                  try {
+                    const md =
+                      JSON.parse(localStorage.getItem("memberData") || "{}") ||
+                      {};
+                    return md.fullname || md.user_id || "";
+                  } catch {
+                    return "";
+                  }
+                })()}
               </p>
               <p className="text-xs text-gray-400">
-                MLM Manager
+                {(() => {
+                  try {
+                    const md =
+                      JSON.parse(localStorage.getItem("memberData") || "{}") ||
+                      {};
+                    return md.rank || "";
+                  } catch {
+                    return "";
+                  }
+                })()}
               </p>
             </div>
           </div>
-
         </div>
       </div>
 
       {showSubHeader && (
         <div className="px-6 py-3">
-          <h2 className="text-lg font-semibold text-gray-700">
-            {pageTitle}
-          </h2>
-          <p className="text-xs text-gray-400">
-            CUSTOMER ID: MLM-00484
-          </p>
+          <h2 className="text-lg font-semibold text-gray-700">{pageTitle}</h2>
+          <p className="text-xs text-gray-400">CUSTOMER ID: MLM-00484</p>
         </div>
       )}
     </div>

@@ -11,13 +11,11 @@ import { CiMedal } from "react-icons/ci";
 import { HiOutlineDocumentText } from "react-icons/hi";
 import { GoArrowUpRight } from "react-icons/go";
 
-
 /* ================= CARD ================= */
 function Card({ title, amount, note, color, icon }) {
   return (
     <div className={`p-6 rounded-xl text-white shadow ${color}`}>
       <div className="flex justify-between items-start">
-
         {/* Icon Box */}
         <div className="bg-white/20 w-14 h-14 rounded-xl flex items-center justify-center">
           <span className="text-white text-2xl">{icon}</span>
@@ -38,10 +36,25 @@ function Card({ title, amount, note, color, icon }) {
 
 /* ================= DASHBOARD ================= */
 export default function Dashboard() {
-  const leftLink =
-    "https://4stepnetwork.com/associate/signup.php?placement_id=FC7981495&leg=L";
-  const rightLink =
-    "https://4stepnetwork.com/associate/signup.php?placement_id=FC7981495&leg=R";
+  // build referral links using logged-in member's user_id (falls back to placeholder)
+  let memberData = {};
+  try {
+    memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+  } catch {
+    memberData = {};
+  }
+
+  // welcome name and id
+  const welcomeName = memberData.fullname || memberData.user_id || "Member";
+  const customerId = memberData.user_id
+    ? `MLM-${memberData.user_id}`
+    : "MLM-00000";
+
+  const sponsorId = memberData.user_id || memberData.id || "FC7981495";
+
+  const baseSignup = `${window.location.origin}/member/signup`;
+  const leftLink = `${baseSignup}?sponsorId=${encodeURIComponent(sponsorId)}&position=left`;
+  const rightLink = `${baseSignup}?sponsorId=${encodeURIComponent(sponsorId)}&position=right`;
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -50,23 +63,19 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
-
       <Sidebar />
 
       <div className="flex-1 min-w-0 flex flex-col">
-
         <Navbar />
 
         <div className="p-6">
-
           {/* Welcome */}
           <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg shadow">
-            Welcome back, Nayak Jenatiben
+            Welcome back, {welcomeName} {customerId && `(${customerId})`}
           </div>
 
           {/* Referral Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-
             {/* Left */}
             <div className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
@@ -104,9 +113,17 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Referral helper: if sponsorId is placeholder, show notice to create initial member */}
+          {sponsorId === "FC7981495" && (
+            <div className="mt-3 text-sm text-yellow-700 bg-yellow-50 p-3 rounded">
+              No main member found in local session. Create one member in the
+              backend database with an active status so referrals can use your
+              referral links. See backend README for instructions.
+            </div>
+          )}
+
           {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
-
             {/* Purchase Balance (Wallet Icon) */}
             <Card
               title="Purchase Balance"
@@ -161,7 +178,6 @@ export default function Dashboard() {
               color="bg-[linear-gradient(90deg,#9B4032,#2864A3)]"
             />
           </div>
-
         </div>
       </div>
     </div>
