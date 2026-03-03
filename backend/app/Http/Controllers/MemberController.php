@@ -5,10 +5,62 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Member;
+use App\Models\MyKyc;
+use App\Models\IdCard;
+use Illuminate\Support\Facades\Storage;
 
 class MemberController extends Controller
 {
    
+
+ private function findMemberByUserId($userId)
+    {
+        return Member::where('user_id', $userId)->first();
+    }
+
+    /* ---------------------------------
+        PROFILE
+    ---------------------------------*/
+
+    public function profile(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|string'
+        ]);
+
+        $member = $this->findMemberByUserId($request->user_id);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        return response()->json($member);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|string|exists:members,user_id',
+            'fullname' => 'nullable|string|max:255',
+            'dob' => 'nullable|date',
+            'gender' => 'nullable|string',
+            'email' => 'nullable|email',
+            'mobile_no' => 'nullable|string',
+            'address' => 'nullable|string',
+            'pin_code' => 'nullable|string',
+            'state' => 'nullable|string',
+            'city' => 'nullable|string',
+            'district' => 'nullable|string',
+        ]);
+
+        $member = $this->findMemberByUserId($validated['user_id']);
+        $member->update($validated);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'member' => $member
+        ]);
+    }
 
     public function signup(Request $request)
     {
@@ -253,5 +305,195 @@ private function buildTree($memberId, $levels)
         'left' => $left ? $this->buildTree($left->id, $levels - 1) : null,
         'right' => $right ? $this->buildTree($right->id, $levels - 1) : null,
     ];
+}
+
+  public function getKyc(Request $request)
+    {
+        $request->validate(['user_id' => 'required|string']);
+
+        $member = $this->findMemberByUserId($request->user_id);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        return response()->json(
+            MyKyc::where('member_id', $member->id)->first()
+        );
+    }
+
+    public function upsertKyc(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|string',
+            'account_beneficiary_name' => 'required|string',
+            'account_no' => 'required|string',
+            're_account_no' => 'required|string',
+            'ifs_code' => 'required|string',
+            'bank_name' => 'required|string',
+            'branch_name' => 'required|string',
+            'aadhar_number' => 'required|string',
+            'pan_number' => 'required|string',
+        ]);
+
+        if ($validated['account_no'] !== $validated['re_account_no']) {
+            return response()->json(['message' => 'Account numbers do not match'], 422);
+        }
+
+        $member = $this->findMemberByUserId($validated['user_id']);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        $existingKyc = MyKyc::where('member_id', $member->id)->first();
+
+        $bankDetails = $existingKyc
+            ? [
+                'account_beneficiary_name' => $existingKyc->account_beneficiary_name,
+                'account_no' => $existingKyc->account_no,
+                'ifs_code' => $existingKyc->ifs_code,
+                'bank_name' => $existingKyc->bank_name,
+                'branch_name' => $existingKyc->branch_name,
+            ]
+            : [
+                'account_beneficiary_name' => $validated['account_beneficiary_name'],
+                'account_no' => $validated['account_no'],
+                'ifs_code' => strtoupper($validated['ifs_code']),
+                'bank_name' => $validated['bank_name'],
+                'branch_name' => $validated['branch_name'],
+            ];
+
+        $kyc = MyKyc::updateOrCreate(
+            ['member_id' => $member->id],
+            [
+                'user_id' => $member->user_id,
+                ...$bankDetails,
+                'aadhar_number' => $existingKyc ? $existingKyc->aadhar_number : $validated['aadhar_number'],
+                'pan_number' => $existingKyc ? $existingKyc->pan_number : strtoupper($validated['pan_number']),
+                'otp_verified' => true,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'KYC updated successfully',
+            'kyc' => $kyc
+        ]);
+    }
+
+    public function getIdCard(Request $request)
+    {
+        $request->validate(['user_id' => 'required|string']);
+
+        $member = $this->findMemberByUserId($request->user_id);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        $idCard = IdCard::where('member_id', $member->id)->first();
+
+        if (!$idCard) {
+            return response()->json(['message' => 'ID card photo not found'], 404);
+        }
+
+        return response()->json([
+            'id_card' => $idCard,
+            'photo_url' => Storage::url($idCard->file_path),
+        ]);
+    }
+
+    public function uploadIdCard(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|string',
+            'photo' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+        ]);
+
+        $member = $this->findMemberByUserId($validated['user_id']);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        $existingIdCard = IdCard::where('member_id', $member->id)->first();
+
+        if ($existingIdCard && $existingIdCard->file_path && Storage::disk('public')->exists($existingIdCard->file_path)) {
+            Storage::disk('public')->delete($existingIdCard->file_path);
+        }
+
+        $photo = $request->file('photo');
+        $storedPath = $photo->store('id_cards', 'public');
+
+        $idCard = IdCard::updateOrCreate(
+            ['member_id' => $member->id],
+            [
+                'user_id' => $member->user_id,
+                'file_path' => $storedPath,
+                'original_name' => $photo->getClientOriginalName(),
+                'mime_type' => $photo->getClientMimeType(),
+                'file_size' => $photo->getSize(),
+            ]
+        );
+
+        return response()->json([
+            'message' => 'ID card photo uploaded successfully',
+            'id_card' => $idCard,
+            'photo_url' => Storage::url($idCard->file_path),
+        ]);
+    }
+
+public function getDownline(Request $request)
+{
+    $user = Member::find(1); // testing user
+
+    $left = $this->getAllDownline($user->id, 'left', []);
+    $right = $this->getAllDownline($user->id, 'right', []);
+
+    return response()->json([
+        'left' => $left,
+        'right' => $right
+    ]);
+}
+
+private function getAllDownline($parentId, $position, $visited)
+{
+    if (in_array($parentId, $visited)) {
+        return collect(); // prevent infinite loop
+    }
+
+    $visited[] = $parentId;
+
+    $members = Member::where('parent_id', $parentId)
+        ->where('position', $position)
+        ->get();
+
+    $all = collect();
+
+    foreach ($members as $member) {
+        $all->push($member);
+
+        $all = $all->merge(
+            $this->getAllDownline($member->id, 'left', $visited)
+        );
+
+        $all = $all->merge(
+            $this->getAllDownline($member->id, 'right', $visited)
+        );
+    }
+
+    return $all;
+}
+
+public function matchingStatus(Request $request)
+{
+    // TEMPORARY: hardcoded user for testing
+    $userId = 1; // change this if needed
+
+    $history = \App\Models\MatchingHistory::where('user_id', $userId)
+        ->orderBy('match_date', 'desc')
+        ->get();
+
+    return response()->json($history);
 }
 }

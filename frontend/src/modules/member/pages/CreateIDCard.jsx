@@ -2,12 +2,96 @@ import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { useState } from "react";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
 export default function CreateIDCard() {
+  const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) setFileName(file.name);
+
+    setError("");
+    setMessage("");
+
+    if (!file) {
+      setSelectedFile(null);
+      setFileName("");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setSelectedFile(null);
+      setFileName("");
+      setError("File size must be 2 MB or less");
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setSelectedFile(null);
+      setFileName("");
+      setError("Only JPG, PNG, or GIF images are allowed");
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileName(file.name);
+  };
+
+  const handleSubmit = async () => {
+    setError("");
+    setMessage("");
+
+    let memberData = {};
+    try {
+      memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+    } catch {
+      memberData = {};
+    }
+
+    if (!memberData?.user_id) {
+      setError("Please sign in first");
+      return;
+    }
+
+    if (!selectedFile) {
+      setError("Please choose a photo before submit");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const formData = new FormData();
+      formData.append("user_id", memberData.user_id);
+      formData.append("photo", selectedFile);
+
+      const response = await fetch(`${API_BASE_URL}/member/id-card`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.message || "Unable to upload photo");
+        return;
+      }
+
+      setMessage("Photo uploaded successfully");
+    } catch {
+      setError("Unable to connect to backend");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -25,6 +109,8 @@ export default function CreateIDCard() {
           <h1 className="text-2xl font-bold text-[#B0422E]">
             Create ID Card
           </h1>
+          {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+          {message && <p className="text-sm text-green-600 mt-2">{message}</p>}
         </div>
 
         <div className="p-6">
@@ -76,8 +162,13 @@ export default function CreateIDCard() {
               )}
 
               <div className="mt-6">
-                <button className="bg-red-700 hover:bg-red-800 text-white px-8 py-2 rounded-md">
-                  Submit
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="bg-red-700 hover:bg-red-800 disabled:opacity-60 text-white px-8 py-2 rounded-md"
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </button>
               </div>
 

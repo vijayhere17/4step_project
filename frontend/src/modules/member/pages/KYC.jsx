@@ -1,9 +1,173 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+
 export default function KYC() {
   const [step, setStep] = useState(1); // 1 = Bank Info, 2 = KYC Details
+  const [isBankReadOnly, setIsBankReadOnly] = useState(false);
+  const [isIdentityReadOnly, setIsIdentityReadOnly] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const [form, setForm] = useState({
+    account_beneficiary_name: "",
+    account_no: "",
+    re_account_no: "",
+    ifs_code: "",
+    bank_name: "",
+    branch_name: "",
+    aadhar_number: "",
+    pan_number: "",
+  });
+
+  useEffect(() => {
+    const loadKyc = async () => {
+      setIsLoading(true);
+      setError("");
+
+      let memberData = {};
+      try {
+        memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+      } catch {
+        memberData = {};
+      }
+
+      if (!memberData?.user_id) {
+        setIsLoading(false);
+        setError("Please sign in first");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/member/kyc?user_id=${encodeURIComponent(memberData.user_id)}`,
+          {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+            },
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data?.message || "Unable to load KYC");
+          return;
+        }
+
+        const kycData = data?.kyc || data;
+
+        if (kycData?.id) {
+          setIsBankReadOnly(true);
+          setIsIdentityReadOnly(Boolean(kycData.aadhar_number && kycData.pan_number));
+          setForm({
+            account_beneficiary_name: kycData.account_beneficiary_name || "",
+            account_no: kycData.account_no || "",
+            re_account_no: kycData.account_no || "",
+            ifs_code: kycData.ifs_code || "",
+            bank_name: kycData.bank_name || "",
+            branch_name: kycData.branch_name || "",
+            aadhar_number: kycData.aadhar_number || "",
+            pan_number: kycData.pan_number || "",
+          });
+        }
+      } catch {
+        setError("Unable to connect to backend");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadKyc();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const goToStep2 = () => {
+    setError("");
+    setMessage("");
+
+    if (
+      !form.account_beneficiary_name ||
+      !form.account_no ||
+      !form.re_account_no ||
+      !form.ifs_code ||
+      !form.bank_name ||
+      !form.branch_name
+    ) {
+      setError("Please fill all Bank Info fields");
+      return;
+    }
+
+    if (form.account_no !== form.re_account_no) {
+      setError("Account numbers do not match");
+      return;
+    }
+
+    setStep(2);
+  };
+
+  const submitKyc = async () => {
+    setError("");
+    setMessage("");
+
+    if (!form.aadhar_number || !form.pan_number) {
+      setError("Please fill Aadhar and PAN Number");
+      return;
+    }
+
+    let memberData = {};
+    try {
+      memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+    } catch {
+      memberData = {};
+    }
+
+    if (!memberData?.user_id) {
+      setError("Please sign in first");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const response = await fetch(`${API_BASE_URL}/member/kyc`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          user_id: memberData.user_id,
+          ...form,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data?.message || "Unable to save KYC");
+        return;
+      }
+
+      setMessage("KYC saved successfully");
+      setIsBankReadOnly(true);
+      setIsIdentityReadOnly(true);
+      setStep(3);
+    } catch {
+      setError("Unable to connect to backend");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -17,6 +181,9 @@ export default function KYC() {
           <h1 className="text-2xl font-bold text-[#B0422E]">
             My KYC with Bank Info
           </h1>
+          {isLoading && <p className="text-sm text-gray-500 mt-2">Loading KYC...</p>}
+          {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+          {message && <p className="text-sm text-green-600 mt-2">{message}</p>}
 
           <div className="flex justify-center items-center mt-6 px-4">
             <div className="flex items-center text-xs sm:text-sm overflow-x-auto max-w-full pb-2">
@@ -65,18 +232,24 @@ export default function KYC() {
               <div className="space-y-8">
 
                 {[
-                  "Account Beneficiary Name*",
-                  "Account No*",
-                  "Re Enter Account No*",
-                  "IFS Code*",
-                  "Bank Name*",
-                  "Branch Name*"
-                ].map((label, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  { label: "Account Beneficiary Name*", name: "account_beneficiary_name" },
+                  { label: "Account No*", name: "account_no" },
+                  { label: "Re Enter Account No*", name: "re_account_no" },
+                  { label: "IFS Code*", name: "ifs_code" },
+                  { label: "Bank Name*", name: "bank_name" },
+                  { label: "Branch Name*", name: "branch_name" }
+                ].map((field) => (
+                  <div key={field.name} className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <label className="sm:w-64 font-bold text-gray-600 ">
-                      {label}
+                      {field.label}
                     </label>
-                    <input className="flex-1 border-b border-gray-300 outline-none py-1 focus:border-blue-600" />
+                    <input
+                      name={field.name}
+                      value={form[field.name]}
+                      onChange={handleChange}
+                      readOnly={isBankReadOnly}
+                      className={`flex-1 border-b border-gray-300 outline-none py-1 ${isBankReadOnly ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "focus:border-blue-600"}`}
+                    />
                   </div>
                 ))}
 
@@ -84,10 +257,10 @@ export default function KYC() {
 
               <div className="text-center mt-10">
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={goToStep2}
                   className="bg-[#B0422E] hover:bg-[#B0422E] text-white px-8 py-2 rounded-md"
                 >
-                  Update
+                  {isBankReadOnly ? "Continue" : "Update"}
                 </button>
               </div>
             </div>
@@ -106,20 +279,35 @@ export default function KYC() {
                   <label className="sm:w-64 font-bold text-gray-600">
                     Aadhar Number*
                   </label>
-                  <input className="flex-1 border-b border-gray-300 outline-none py-1 focus:border-blue-600" />
+                  <input
+                    name="aadhar_number"
+                    value={form.aadhar_number}
+                    onChange={handleChange}
+                    readOnly={isIdentityReadOnly}
+                    className={`flex-1 border-b border-gray-300 outline-none py-1 ${isIdentityReadOnly ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "focus:border-blue-600"}`}
+                  />
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <label className="sm:w-64 text-gray-600 font-bold">
                     PAN Number*
                   </label>
-                  <input className="flex-1 border-b border-gray-300 outline-none py-1 focus:border-blue-600" />
+                  <input
+                    name="pan_number"
+                    value={form.pan_number}
+                    onChange={handleChange}
+                    readOnly={isIdentityReadOnly}
+                    className={`flex-1 border-b border-gray-300 outline-none py-1 ${isIdentityReadOnly ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "focus:border-blue-600"}`}
+                  />
                 </div>
 
               </div>
 
               <div className="text-center mt-8">
-                <button className="bg-[#B0422E] hover:bg-[#B0422E] text-white px-8 py-2 rounded-md">
+                <button
+                  onClick={() => setMessage("OTP sent (demo)")}
+                  className="bg-[#B0422E] hover:bg-[#B0422E] text-white px-8 py-2 rounded-md"
+                >
                   Send OTP
                 </button>
               </div>
@@ -136,10 +324,11 @@ export default function KYC() {
 
               <div className="text-center mt-8">
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={submitKyc}
+                  disabled={isSaving}
                   className="bg-[#B0422E] hover:bg-[#B0422E] text-white px-8 py-2 rounded-md"
                 >
-                  Submit
+                  {isSaving ? "Saving..." : "Submit"}
                 </button>
               </div>
             </div>
