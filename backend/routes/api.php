@@ -1,0 +1,58 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MemberController;
+use App\Http\Controllers\DiwaliBonusController;
+use App\Http\Controllers\RoyaltyClubBonusController;
+use App\Http\Controllers\BusinessMonitoringBonusController;
+use App\Http\Controllers\LeadershipRankBonusController;
+use App\Http\Controllers\FamilySaverBonusController;
+use App\Http\Controllers\BranchTurnoverBonusController;
+use App\Http\Controllers\LoyaltyBonusController;
+use App\Http\Controllers\GroupBuiltupBonusController;
+use App\Http\Controllers\BranchController;
+use App\Http\Controllers\MemberMessageController;
+use App\Http\Controllers\RepurchaseWalletStatusController;
+
+// API routes for member operations (stateless, no CSRF)
+Route::post('member/signup', [MemberController::class, 'signup']);
+Route::post('member/signin', [MemberController::class, 'signin']);
+Route::post('member/check-sponsor', [MemberController::class, 'checkSponsor']);
+Route::post('member/internal-add', [MemberController::class, 'internalAdd']);
+Route::get('/member/dashboard', [MemberController::class, 'dashboard']);
+Route::post('member/activate-package', [MemberController::class, 'activatePackage']);
+Route::get('member/consistency-status', [RepurchaseWalletStatusController::class, 'index']);
+Route::get('member/repurchase-status', [RepurchaseWalletStatusController::class, 'index']);
+Route::get('/member/tree', [MemberController::class, 'tree']);
+Route::get('member/profile', [MemberController::class, 'profile']);
+Route::put('member/profile', [MemberController::class, 'updateProfile']);
+Route::get('member/kyc', [MemberController::class, 'getKyc']);
+Route::put('member/kyc', [MemberController::class, 'upsertKyc']);
+Route::get('member/id-card', [MemberController::class, 'getIdCard']);
+Route::post('member/id-card', [MemberController::class, 'uploadIdCard']);
+Route::post('member/check-sponsor', [MemberController::class, 'checkSponsor']);
+Route::post('member/internal-add', [MemberController::class, 'internalAdd']);
+Route::get('/downline', [MemberController::class, 'getDownline']);
+Route::get('/matching-status', [MemberController::class, 'matchingStatus']);
+Route::get('bonuses/diwali', [DiwaliBonusController::class, 'index']);
+Route::post('bonuses/diwali/calculate', [DiwaliBonusController::class, 'calculateYearly']);
+Route::get('bonuses/royalty-club', [RoyaltyClubBonusController::class, 'index']);
+Route::post('bonuses/royalty-club/calculate', [RoyaltyClubBonusController::class, 'calculateMonthly']);
+Route::get('bonuses/business-monitoring', [BusinessMonitoringBonusController::class, 'index']);
+Route::post('bonuses/business-monitoring/calculate', [BusinessMonitoringBonusController::class, 'calculateCycle']);
+Route::get('bonuses/leadership-rank', [LeadershipRankBonusController::class, 'index']);
+Route::post('bonuses/leadership-rank/calculate', [LeadershipRankBonusController::class, 'calculateCycle']);
+Route::get('bonuses/family-saver', [FamilySaverBonusController::class, 'index']);
+Route::post('bonuses/family-saver/calculate', [FamilySaverBonusController::class, 'calculateMonthly']);
+Route::get('bonuses/branch-turnover', [BranchTurnoverBonusController::class, 'index']);
+Route::post('bonuses/branch-turnover/calculate', [BranchTurnoverBonusController::class, 'calculateMonthly']);
+Route::get('bonuses/loyalty', [LoyaltyBonusController::class, 'index']);
+Route::post('bonuses/loyalty/calculate-monthly', [LoyaltyBonusController::class, 'calculateMonthly']);
+Route::post('bonuses/loyalty/calculate-consistency', [LoyaltyBonusController::class, 'calculateConsistencyBonus']);
+Route::get('bonuses/group-builtup', [GroupBuiltupBonusController::class, 'index']);
+Route::post('bonuses/group-builtup/calculate', [GroupBuiltupBonusController::class, 'calculateCycle']);
+Route::get('branches', [BranchController::class, 'index']);
+Route::get('branches/referral', [BranchController::class, 'referralBranch']);
+Route::post('messages/compose', [MemberMessageController::class, 'compose']);
+Route::get('messages/inbox', [MemberMessageController::class, 'inbox']);
+Route::get('messages/outbox', [MemberMessageController::class, 'outbox']);
