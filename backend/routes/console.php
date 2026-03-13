@@ -246,7 +246,7 @@ Artisan::command('bonus:group-builtup {cycle_date? : Cycle date in Y-m-d format}
     }
 
     $this->info('Group Builtup bonus processed for cycle: ' . $result['cycle_date']);
-    $this->line('Pair PV: ' . $result['pair_pv']);
+    $this->line('Pair PV: ' . $result['pair_pv'] . ' (125/250/500/1000/2000/4000 by step)');
     $this->line('Processed members: ' . $result['processed_members']);
     $this->line('Eligible members: ' . $result['eligible_members']);
     $this->line('Total gross income: ' . $result['total_gross_income']);

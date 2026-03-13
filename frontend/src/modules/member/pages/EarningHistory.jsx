@@ -1,8 +1,79 @@
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { requestMemberApi } from "../utils/apiClient";
+
+const formatMoney = (value) => {
+  const amount = Number(value || 0);
+  return `₹${new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount)}`;
+};
 
 const EarningBalanceHistory = () => {
+  const [rows, setRows] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchRows = async () => {
+      try {
+        setError("");
+
+        let memberData = {};
+        try {
+          memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+        } catch {
+          memberData = {};
+        }
+
+        if (!memberData?.user_id) {
+          if (isMounted) {
+            setRows([]);
+            setError("Please sign in to view earning balance history.");
+          }
+          return;
+        }
+
+        const response = await requestMemberApi("/member/earning-balance-history", {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "X-Auth-Member": memberData.user_id,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(response.data?.message || "Unable to load earning balance history.");
+        }
+
+        if (isMounted) {
+          setRows(Array.isArray(response.data?.data) ? response.data.data : []);
+        }
+      } catch (fetchError) {
+        if (isMounted) {
+          setRows([]);
+          setError(fetchError.message || "Unable to load earning balance history.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchRows();
+    const intervalId = setInterval(fetchRows, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
           <Sidebar />
@@ -14,6 +85,9 @@ const EarningBalanceHistory = () => {
             <h1 className="text-3xl font-bold text-[#B0422E] text-center mb-8">
              Earning Balance History
             </h1>
+
+            {isLoading && <p className="text-center text-gray-500 mb-4">Loading history...</p>}
+            {!isLoading && error && <p className="text-center text-red-500 mb-4">{error}</p>}
 
             <div className="bg-white rounded-2xl shadow p-6">
                 <div className="overflow-x-auto">
@@ -32,15 +106,25 @@ const EarningBalanceHistory = () => {
                                     </thead>
 
                                     <tbody>
-                                    <tr className="border-b">
-                                    <td className="p-4">01</td>
-                                    <td>17-02-2026</td>
-                                    <td>Group Built-Up Bonus</td>
-                                    <td>Mumbai</td>
-                                    <td>₹40,00,000</td>
-                                    <td>₹1,20,000</td>
-                                    <td className="text-green-600 font-semibold">Approved</td>
-                                 </tr>
+                                    {!isLoading && rows.length === 0 && (
+                                      <tr className="border-b">
+                                        <td className="p-4" colSpan={7}>No earning balance history records found</td>
+                                      </tr>
+                                    )}
+
+                                    {rows.map((row, index) => (
+                                      <tr className="border-b" key={`${row.date || ""}-${row.description || ""}-${index}`}>
+                                        <td className="p-4">{String(row.sr_no || index + 1).padStart(2, "0")}</td>
+                                        <td>{row.date || "-"}</td>
+                                        <td>{row.description || "-"}</td>
+                                        <td>{Number(row.credit_amount) > 0 ? formatMoney(row.credit_amount) : "--"}</td>
+                                        <td>{Number(row.debit_amount) > 0 ? formatMoney(row.debit_amount) : "--"}</td>
+                                        <td>{formatMoney(row.balance_amount)}</td>
+                                        <td className={`font-semibold ${String(row.status || "").toLowerCase() === "approved" ? "text-green-600" : "text-yellow-600"}`}>
+                                          {row.status || "Pending"}
+                                        </td>
+                                      </tr>
+                                    ))}
                              </tbody>
 
                         </table>

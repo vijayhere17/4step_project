@@ -16,11 +16,6 @@ class RoyaltyClubBonusController extends Controller
     private const MIN_STEP_LEVEL = 4;
     private const MIN_MONTHLY_PURCHASE = 500;
 
-    /*
-    |--------------------------------------------------------------------------
-    | 1️⃣ Get Royalty Bonus History
-    |--------------------------------------------------------------------------
-    */
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -72,11 +67,6 @@ class RoyaltyClubBonusController extends Controller
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | 2️⃣ Calculate Monthly Royalty Bonus
-    |--------------------------------------------------------------------------
-    */
     public function calculateMonthly(Request $request)
     {
         $validated = $request->validate([

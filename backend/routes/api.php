@@ -13,6 +13,8 @@ use App\Http\Controllers\GroupBuiltupBonusController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\MemberMessageController;
 use App\Http\Controllers\RepurchaseWalletStatusController;
+use App\Http\Controllers\IncomeSummaryController;
+use App\Http\Controllers\EarningBalanceController;
 
 // API routes for member operations (stateless, no CSRF)
 Route::post('member/signup', [MemberController::class, 'signup']);
@@ -20,12 +22,16 @@ Route::post('member/signin', [MemberController::class, 'signin']);
 Route::post('member/check-sponsor', [MemberController::class, 'checkSponsor']);
 Route::post('member/internal-add', [MemberController::class, 'internalAdd']);
 Route::get('/member/dashboard', [MemberController::class, 'dashboard']);
+Route::get('member/dashboard-stats', [MemberController::class, 'dashboardStats']);
 Route::post('member/activate-package', [MemberController::class, 'activatePackage']);
 Route::get('member/consistency-status', [RepurchaseWalletStatusController::class, 'index']);
 Route::get('member/repurchase-status', [RepurchaseWalletStatusController::class, 'index']);
 Route::get('/member/tree', [MemberController::class, 'tree']);
 Route::get('member/profile', [MemberController::class, 'profile']);
 Route::put('member/profile', [MemberController::class, 'updateProfile']);
+Route::get('member/income-summary', [IncomeSummaryController::class, 'index']);
+Route::get('member/earning-balance-withdrawal', [EarningBalanceController::class, 'withdrawal']);
+Route::get('member/earning-balance-history', [EarningBalanceController::class, 'history']);
 Route::get('member/kyc', [MemberController::class, 'getKyc']);
 Route::put('member/kyc', [MemberController::class, 'upsertKyc']);
 Route::get('member/id-card', [MemberController::class, 'getIdCard']);

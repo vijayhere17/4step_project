@@ -5,6 +5,15 @@ import Navbar from "../components/Navbar";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
+const PACKAGE_STEPS = [
+  { step: 1, pairPv: 125, incomePerPair: 125, closingCap: 1000, dailyCap: 2000 },
+  { step: 2, pairPv: 250, incomePerPair: 250, closingCap: 2000, dailyCap: 4000 },
+  { step: 3, pairPv: 500, incomePerPair: 500, closingCap: 3000, dailyCap: 6000 },
+  { step: 4, pairPv: 1000, incomePerPair: 1000, closingCap: 5000, dailyCap: 10000 },
+  { step: 5, pairPv: 2000, incomePerPair: 2000, closingCap: 5000, dailyCap: 10000 },
+  { step: 6, pairPv: 4000, incomePerPair: 4000, closingCap: 10000, dailyCap: 20000 },
+];
+
 const GroupBuiltupBonus = () => {
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,6 +124,34 @@ const GroupBuiltupBonus = () => {
           </h1>
           {isLoading && <p className="text-center text-gray-500 mb-4">Loading bonuses...</p>}
           {error && <p className="text-center text-red-500 mb-4">{error}</p>}
+
+          <div className="bg-white rounded-2xl shadow p-6 mb-6">
+            <h2 className="text-xl font-bold text-[#B0422E] mb-4">Package PV Table</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-center">
+                <thead>
+                  <tr className="bg-[#B0422E] text-white">
+                    <th className="p-3 rounded-l-xl">Step</th>
+                    <th className="p-3">Pair PV</th>
+                    <th className="p-3">Income / Pair</th>
+                    <th className="p-3">Closing Cap</th>
+                    <th className="p-3 rounded-r-xl">Daily Cap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PACKAGE_STEPS.map((item) => (
+                    <tr className="border-b" key={item.step}>
+                      <td className="p-3">{item.step}</td>
+                      <td>{item.pairPv}</td>
+                      <td>{item.incomePerPair}</td>
+                      <td>{item.closingCap}</td>
+                      <td>{item.dailyCap}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           <div className="bg-white rounded-2xl shadow p-6">
             <div className="overflow-x-auto">

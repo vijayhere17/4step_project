@@ -12,66 +12,56 @@ import { HiOutlineDocumentText } from "react-icons/hi";
 import { GoArrowUpRight } from "react-icons/go";
 import { requestMemberApi } from "../utils/apiClient";
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const ACTIVATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-const FALLBACK_PACKAGE_OPTIONS = [
-  {
-    id: "step-1",
-    label: "1 Step",
-    pv: "250 PV",
-    amountRange: "₹1199 - ₹1500",
-    cycleCapping: "₹1000",
-    dailyCapping: "₹2000",
-  },
-  {
-    id: "step-2",
-    label: "2 Step",
-    pv: "500 PV",
-    amountRange: "₹1999 - ₹2500",
-    cycleCapping: "₹2000",
-    dailyCapping: "₹4000",
-  },
-  {
-    id: "step-3",
-    label: "3 Step",
-    pv: "750 PV",
-    amountRange: "₹2999 - ₹3500",
-    cycleCapping: "₹3000",
-    dailyCapping: "₹6000",
-  },
-  {
-    id: "step-4",
-    label: "4 Step",
-    pv: "1000 PV",
-    amountRange: "₹3999 - ₹4500",
-    cycleCapping: "₹5000",
-    dailyCapping: "₹10000",
-  },
-  {
-    id: "step-5",
-    label: "5 Step Pro",
-    pv: "1000 PV",
-    amountRange: "₹5999 - ₹7500",
-    cycleCapping: "₹5000",
-    dailyCapping: "₹10000",
-  },
-  {
-    id: "step-6",
-    label: "6 Step Pro",
-    pv: "2000 PV",
-    amountRange: "₹11599 - ₹15000",
-    cycleCapping: "₹10000",
-    dailyCapping: "₹20000",
-  },
-  {
-    id: "step-7",
-    label: "7 Step Pro",
-    pv: "4000 PV",
-    amountRange: "₹22999 - ₹30000",
-    cycleCapping: "₹20000",
-    dailyCapping: "₹40000",
-  },
-];
+function readStoredMemberData() {
+  try {
+    return JSON.parse(localStorage.getItem("memberData") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function resolveStepFromPackageId(packageId) {
+  const packageIdText = String(packageId || "").trim();
+  const stepMatch = packageIdText.match(/step[-_]?(\d+)/i);
+
+  if (!stepMatch) {
+    return 0;
+  }
+
+  const step = Number(stepMatch[1]);
+  return Number.isFinite(step) && step > 0 ? Math.trunc(step) : 0;
+}
+
+function getMemberStep(memberData) {
+  const step = Number(
+    memberData?.selected_package_step ??
+      memberData?.package_step ??
+      memberData?.step_level,
+  );
+
+  if (Number.isFinite(step) && step > 0) {
+    return Math.trunc(step);
+  }
+
+  return resolveStepFromPackageId(memberData?.selected_package_id);
+}
+
+function isMemberActivated(memberData) {
+  const rawStatus = memberData?.status;
+
+  if (typeof rawStatus === "boolean") {
+    return rawStatus;
+  }
+
+  if (typeof rawStatus === "number") {
+    return rawStatus === 1;
+  }
+
+  const normalizedStatus = String(rawStatus || "").trim().toLowerCase();
+  return ["1", "true", "active", "activated", "approved"].includes(normalizedStatus);
+}
 
 function formatActivationCountdown(milliseconds) {
   if (milliseconds <= 0) return "Expired";
@@ -82,71 +72,16 @@ function formatActivationCountdown(milliseconds) {
   const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
   const seconds = totalSeconds % 60;
 
-  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  return `${String(days).padStart(2, "0")}d ${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 function formatCurrencyInr(value) {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return "";
-  }
+  const numericValue = Number(value || 0);
 
-  return `₹${new Intl.NumberFormat("en-IN").format(numericValue)}`;
-}
-
-function normalizePackageOption(pkg, index) {
-  if (!pkg || typeof pkg !== "object") {
-    return null;
-  }
-
-  const fallbackId = `step-${index + 1}`;
-  const id = String(pkg.id || (pkg.step ? `step-${pkg.step}` : fallbackId));
-
-  const pvNumber = Number(pkg.pv);
-  const pv =
-    typeof pkg.pv === "string" && pkg.pv.includes("PV")
-      ? pkg.pv
-      : Number.isFinite(pvNumber)
-        ? `${pvNumber} PV`
-        : "0 PV";
-
-  const amountRange =
-    typeof pkg.amountRange === "string" && pkg.amountRange.trim().length > 0
-      ? pkg.amountRange
-      : formatCurrencyInr(pkg.amount_min) && formatCurrencyInr(pkg.amount_max)
-        ? `${formatCurrencyInr(pkg.amount_min)} - ${formatCurrencyInr(pkg.amount_max)}`
-        : "-";
-
-  const cycleCapping =
-    typeof pkg.cycleCapping === "string" && pkg.cycleCapping.trim().length > 0
-      ? pkg.cycleCapping
-      : formatCurrencyInr(pkg.cycle_capping) || "-";
-
-  const dailyCapping =
-    typeof pkg.dailyCapping === "string" && pkg.dailyCapping.trim().length > 0
-      ? pkg.dailyCapping
-      : formatCurrencyInr(pkg.daily_capping) || "-";
-
-  return {
-    id,
-    label: String(pkg.label || (pkg.step ? `${pkg.step} Step` : `Step ${index + 1}`)),
-    pv,
-    amountRange,
-    cycleCapping,
-    dailyCapping,
-  };
-}
-
-function getStoredSelectedPackage(storageKey) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    return localStorage.getItem(storageKey) || "";
-  } catch {
-    return "";
-  }
+  return `₹${new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(numericValue)}`;
 }
 
 /* ================= CARD ================= */
@@ -174,13 +109,7 @@ function Card({ title, amount, note, color, icon }) {
 
 /* ================= DASHBOARD ================= */
 export default function Dashboard() {
-  // build referral links using logged-in member's user_id (falls back to placeholder)
-  let memberData = {};
-  try {
-    memberData = JSON.parse(localStorage.getItem("memberData") || "{}") || {};
-  } catch {
-    memberData = {};
-  }
+  const [memberData, setMemberData] = useState(() => readStoredMemberData());
 
   // welcome name and id
   const welcomeName = memberData.fullname || memberData.user_id || "Member";
@@ -190,51 +119,49 @@ export default function Dashboard() {
 
   const sponsorId = memberData.user_id || memberData.id || "FC7981495";
   const memberUserId = memberData.user_id || "";
+  const memberStep = getMemberStep(memberData);
+  const hasActiveStep = isMemberActivated(memberData) && memberStep > 0;
   const activationUserKey = memberData.user_id || memberData.id || "guest";
-  const activationStorageKey = `memberActivationDeadline:${activationUserKey}`;
-  const selectedPackageStorageKey = `memberSelectedPackage:${activationUserKey}`;
+  const activationStorageKey = `memberActivationDeadline30d:${activationUserKey}`;
 
   const getOrCreateActivationDeadline = () => {
+    const now = Date.now();
     const storedDeadline = Number(localStorage.getItem(activationStorageKey));
-    if (Number.isFinite(storedDeadline) && storedDeadline > Date.now()) {
+    const remainingMs = storedDeadline - now;
+
+    if (
+      Number.isFinite(storedDeadline) &&
+      remainingMs > 0 &&
+      remainingMs <= ACTIVATION_WINDOW_MS
+    ) {
       return storedDeadline;
     }
 
-    const newDeadline = Date.now() + THIRTY_DAYS_MS;
+    const newDeadline = now + ACTIVATION_WINDOW_MS;
     localStorage.setItem(activationStorageKey, String(newDeadline));
     return newDeadline;
   };
 
-  const [activationCountdown, setActivationCountdown] = useState(() => {
-    const deadline = getOrCreateActivationDeadline();
-    return formatActivationCountdown(deadline - Date.now());
+  const [activationCountdown, setActivationCountdown] = useState(() =>
+    hasActiveStep ? "Active" : formatActivationCountdown(getOrCreateActivationDeadline() - Date.now()),
+  );
+  const [dashboardStats, setDashboardStats] = useState({
+    purchase_balance: 0,
+    turnover_balance: 0,
+    purchase_orders: 0,
+    sales_orders: 0,
+    sales_turnover: 0,
+    commission_amount: 0,
   });
-  const [memberStatus, setMemberStatus] = useState(Number(memberData.status || 0));
-  const [packageOptions, setPackageOptions] = useState(FALLBACK_PACKAGE_OPTIONS);
-  const [selectedPackageId, setSelectedPackageId] = useState(() => {
-    return getStoredSelectedPackage(selectedPackageStorageKey) || FALLBACK_PACKAGE_OPTIONS[0].id;
-  });
-  const [isActivatingPackage, setIsActivatingPackage] = useState(false);
-  const [activationNotice, setActivationNotice] = useState("");
 
   useEffect(() => {
-    const deadline = getOrCreateActivationDeadline();
+    if (!memberUserId) {
+      return undefined;
+    }
 
-    const tick = () => {
-      setActivationCountdown(formatActivationCountdown(deadline - Date.now()));
-    };
+    let isMounted = true;
 
-    tick();
-    const intervalId = setInterval(tick, 1000);
-    return () => clearInterval(intervalId);
-  }, [activationStorageKey]);
-
-  useEffect(() => {
-    const fetchPackageOptions = async () => {
-      if (!memberUserId) {
-        return;
-      }
-
+    const fetchDashboardSummary = async () => {
       try {
         const response = await requestMemberApi("/member/dashboard", {
           headers: {
@@ -243,61 +170,102 @@ export default function Dashboard() {
           },
         });
 
-        if (!response.ok) {
+        if (!response.ok || !isMounted) {
           return;
         }
 
-        const apiPackages = Array.isArray(response.data?.packages)
-          ? response.data.packages
-          : [];
+        setMemberData((previousMemberData) => {
+          const nextMemberData = {
+            ...previousMemberData,
+            selected_package_id:
+              response.data?.selected_package_id ?? previousMemberData.selected_package_id,
+            selected_package_step:
+              response.data?.selected_package_step ?? previousMemberData.selected_package_step,
+            package_step: response.data?.package_step ?? previousMemberData.package_step,
+            step_level: response.data?.step_level ?? previousMemberData.step_level,
+            status: response.data?.status ?? previousMemberData.status,
+          };
 
-        const normalizedPackages = apiPackages
-          .map((pkg, index) => normalizePackageOption(pkg, index))
-          .filter(Boolean);
-
-        if (!normalizedPackages.length) {
-          return;
-        }
-
-        setPackageOptions(normalizedPackages);
-
-        const apiSelectedPackageId = response.data?.selected_package_id;
-        const storedPackageId = getStoredSelectedPackage(selectedPackageStorageKey);
-        const preferredPackageId =
-          storedPackageId || apiSelectedPackageId || normalizedPackages[0].id;
-
-        const preferredPackageExists = normalizedPackages.some(
-          (pkg) => pkg.id === preferredPackageId,
-        );
-
-        setSelectedPackageId(
-          preferredPackageExists ? preferredPackageId : normalizedPackages[0].id,
-        );
-      } catch (error) {
-        console.error("Failed to load package options:", error);
+          localStorage.setItem("memberData", JSON.stringify(nextMemberData));
+          return nextMemberData;
+        });
+      } catch {
+        // keep existing values on API/network failure
       }
     };
 
-    fetchPackageOptions();
-  }, [memberUserId, selectedPackageStorageKey]);
+    fetchDashboardSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [memberUserId]);
 
   useEffect(() => {
-    if (!packageOptions.some((pkg) => pkg.id === selectedPackageId)) {
-      setSelectedPackageId(packageOptions[0]?.id || FALLBACK_PACKAGE_OPTIONS[0].id);
+    if (hasActiveStep) {
+      setActivationCountdown("Active");
+      return undefined;
     }
-  }, [packageOptions, selectedPackageId]);
+
+    const deadline = getOrCreateActivationDeadline();
+    let intervalId;
+
+    const tick = () => {
+      const remainingMs = deadline - Date.now();
+      setActivationCountdown(formatActivationCountdown(remainingMs));
+
+      if (remainingMs <= 0 && intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+
+    tick();
+    intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [activationStorageKey, hasActiveStep]);
 
   useEffect(() => {
-    if (!selectedPackageId) {
-      return;
+    if (!memberUserId) {
+      return undefined;
     }
 
-    try {
-      localStorage.setItem(selectedPackageStorageKey, selectedPackageId);
-    } catch {
-      // Ignore storage write errors.
-    }
-  }, [selectedPackageId, selectedPackageStorageKey]);
+    let isMounted = true;
+
+    const fetchDashboardStats = async () => {
+      try {
+        const response = await requestMemberApi("/member/dashboard-stats", {
+          headers: {
+            Accept: "application/json",
+            "X-Auth-Member": memberUserId,
+          },
+        });
+
+        if (!response.ok || !isMounted) {
+          return;
+        }
+
+        const data = response.data?.data || {};
+        setDashboardStats({
+          purchase_balance: Number(data.purchase_balance) || 0,
+          turnover_balance: Number(data.turnover_balance) || 0,
+          purchase_orders: Number(data.purchase_orders) || 0,
+          sales_orders: Number(data.sales_orders) || 0,
+          sales_turnover: Number(data.sales_turnover) || 0,
+          commission_amount: Number(data.commission_amount) || 0,
+        });
+      } catch {
+        // keep existing values on API/network failure
+      }
+    };
+
+    fetchDashboardStats();
+    const intervalId = setInterval(fetchDashboardStats, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [memberUserId]);
 
   const baseSignup = `${window.location.origin}/member/signup`;
   const leftLink = `${baseSignup}?sponsorId=${encodeURIComponent(sponsorId)}&position=left`;
@@ -307,65 +275,6 @@ export default function Dashboard() {
     navigator.clipboard.writeText(text);
     alert("Link copied!");
   };
-
-  const activateSelectedPackage = async () => {
-    if (!memberUserId) {
-      setActivationNotice("Sign in first to activate a package.");
-      return;
-    }
-
-    try {
-      setIsActivatingPackage(true);
-      setActivationNotice("");
-
-      const response = await requestMemberApi("/member/activate-package", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Auth-Member": memberUserId,
-        },
-        body: JSON.stringify({
-          package_id: selectedPackageId,
-        }),
-      });
-
-      if (!response.ok) {
-        setActivationNotice(response.data?.message || "Unable to activate package.");
-        return;
-      }
-
-      setMemberStatus(1);
-      setActivationNotice(response.data?.message || "Package activated successfully.");
-
-      try {
-        const storedMemberData =
-          JSON.parse(localStorage.getItem("memberData") || "{}") || {};
-
-        localStorage.setItem(
-          "memberData",
-          JSON.stringify({
-            ...storedMemberData,
-            status: 1,
-            activation_date:
-              response.data?.member?.activation_date || storedMemberData.activation_date,
-          }),
-        );
-      } catch {
-        // Ignore local storage update errors.
-      }
-    } catch (error) {
-      console.error("Package activation failed:", error);
-      setActivationNotice("Unable to connect to server while activating package.");
-    } finally {
-      setIsActivatingPackage(false);
-    }
-  };
-
-  const selectedPackage =
-    packageOptions.find((pkg) => pkg.id === selectedPackageId) ||
-    packageOptions[0] ||
-    FALLBACK_PACKAGE_OPTIONS[0];
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -384,71 +293,8 @@ export default function Dashboard() {
 
 
           <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg shadow mt-5 flex items-center justify-between gap-3">
-            <span>Id Must be Activated within 30 Days</span>
+            <span>{hasActiveStep ? `ID Active to ${memberStep} Step` : "ID Must Be Activated Within 30 Days"}</span>
             <span className="font-semibold whitespace-nowrap">{activationCountdown}</span>
-          </div>
-           {/* Package Selector */}
-          <div className="bg-white px-5 py-4 rounded-lg shadow mt-5 mb-5">
-            <label
-              htmlFor="package-select"
-              className="block text-sm font-semibold text-gray-700 mb-2"
-            >
-              Select {packageOptions.length} Package{packageOptions.length === 1 ? "" : "s"}
-            </label>
-            <select
-              id="package-select"
-              value={selectedPackageId}
-              onChange={(event) => setSelectedPackageId(event.target.value)}
-              className="w-full md:max-w-md border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {packageOptions.map((pkg) => (
-                <option key={pkg.id} value={pkg.id}>
-                  {pkg.label} - {pkg.pv} - {pkg.amountRange}
-                </option>
-              ))}
-            </select>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={activateSelectedPackage}
-                disabled={isActivatingPackage}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold px-4 py-2 rounded-md"
-              >
-                {isActivatingPackage ? "Activating..." : "Activate Selected Package"}
-              </button>
-
-              <span
-                className={`text-sm font-semibold ${
-                  memberStatus === 1 ? "text-green-700" : "text-amber-700"
-                }`}
-              >
-                Status: {memberStatus === 1 ? "Activated" : "Inactive"}
-              </span>
-            </div>
-
-            {activationNotice && (
-              <p className="mt-2 text-sm text-gray-700">{activationNotice}</p>
-            )}
-
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-              <div className="bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
-                <p className="text-gray-500">PV</p>
-                <p className="font-semibold text-blue-700">{selectedPackage.pv}</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
-                <p className="text-gray-500">Amount Range</p>
-                <p className="font-semibold text-blue-700">{selectedPackage.amountRange}</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
-                <p className="text-gray-500">Per Cycle Capping</p>
-                <p className="font-semibold text-blue-700">{selectedPackage.cycleCapping}</p>
-              </div>
-              <div className="bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
-                <p className="text-gray-500">Daily Capping</p>
-                <p className="font-semibold text-blue-700">{selectedPackage.dailyCapping}</p>
-              </div>
-            </div>
           </div>
 
           {/* Referral Section */}
@@ -504,7 +350,7 @@ export default function Dashboard() {
             {/* Purchase Balance (Wallet Icon) */}
             <Card
               title="Purchase Balance"
-              amount="₹1,24,500"
+              amount={formatCurrencyInr(dashboardStats.purchase_balance)}
               note="Updated vs last month"
               icon={<LuWallet />}
               color="bg-[linear-gradient(90deg,#3483D2,#2262A1)]"
@@ -513,7 +359,7 @@ export default function Dashboard() {
             {/* Turnover */}
             <Card
               title="Turnover Balance"
-              amount="₹1,24,500"
+              amount={formatCurrencyInr(dashboardStats.turnover_balance)}
               note="Growth vs last month"
               icon={<GoArrowUpRight />}
               color="bg-[linear-gradient(90deg,#45B0D7,#268CB1)]"
@@ -522,7 +368,7 @@ export default function Dashboard() {
             {/* Purchase Orders */}
             <Card
               title="Purchase Orders"
-              amount="124"
+              amount={String(dashboardStats.purchase_orders)}
               note="Orders this month"
               icon={<BsCart />}
               color="bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]"
@@ -531,7 +377,7 @@ export default function Dashboard() {
             {/* Sales Orders */}
             <Card
               title="No. of Sales Orders"
-              amount="89"
+              amount={String(dashboardStats.sales_orders)}
               note="Sales this month"
               icon={<HiOutlineDocumentText />}
               color="bg-[linear-gradient(90deg,#B74331,#8A3225)]"
@@ -540,7 +386,7 @@ export default function Dashboard() {
             {/* Sales Turnover */}
             <Card
               title="Sales Turnover Amount"
-              amount="₹5,24,500"
+              amount={formatCurrencyInr(dashboardStats.sales_turnover)}
               note="Revenue this month"
               icon={<FaIndianRupeeSign />}
               color="bg-[linear-gradient(90deg,#2A9EC9,#266DB2)]"
@@ -549,7 +395,7 @@ export default function Dashboard() {
             {/* Commission */}
             <Card
               title="Commission Amount"
-              amount="₹24,500"
+              amount={formatCurrencyInr(dashboardStats.commission_amount)}
               note="Earned this month"
               icon={<CiMedal />}
               color="bg-[linear-gradient(90deg,#9B4032,#2864A3)]"

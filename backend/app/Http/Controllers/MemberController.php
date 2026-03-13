@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\Member;
 use App\Models\MyKyc;
 use App\Models\IdCard;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 
@@ -87,7 +88,6 @@ class MemberController extends Controller
             return response()->json(['message' => 'Sponsor not found or not active'], 422);
         }
 
-        // 🔥 Find placement inside selected leg only
         $placement = $this->findSpotInLeg($sponsor->id, $validated['position']);
 
         if (!$placement) {
@@ -175,6 +175,178 @@ class MemberController extends Controller
             'total_team' => $leftCount + $rightCount,
             'packages' => $this->getPackageCatalog(),
             'selected_package_id' => $this->resolveMemberPackageId($member),
+            'selected_package_step' => $this->resolveMemberPackageStep($member),
+            'package_step' => (int) ($member->package_step ?? 0),
+            'step_level' => (int) ($member->step_level ?? 0),
+            'status' => (int) ($member->status ?? 0),
+        ]);
+    }
+
+    public function dashboardStats(Request $request)
+    {
+        $userId = $request->header('X-Auth-Member');
+
+        if (!$userId) {
+            return response()->json(['message' => 'Missing member header'], 401);
+        }
+
+        $member = Member::where('user_id', $userId)->first();
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        $memberId = (int) $member->id;
+        $monthStart = now()->startOfMonth()->toDateString();
+        $monthEnd = now()->endOfMonth()->toDateString();
+        $monthKey = now()->format('Y-m');
+
+        $purchaseBalance = 0.0;
+        if (Schema::hasTable('repurchase_wallet_transactions')) {
+            $rwTable = 'repurchase_wallet_transactions';
+            $useUserId = Schema::hasColumn($rwTable, 'user_id');
+            $idCol = $useUserId ? 'user_id' : 'member_id';
+            $identifier = $useUserId ? $userId : $memberId;
+
+            if (Schema::hasColumn($rwTable, 'balance_after')) {
+                $latestBalance = DB::table($rwTable)
+                    ->where($idCol, $identifier)
+                    ->orderByDesc('id')
+                    ->value('balance_after');
+
+                if ($latestBalance !== null) {
+                    $purchaseBalance = round((float) $latestBalance, 2);
+                }
+            }
+
+            if ($purchaseBalance === 0.0 && Schema::hasColumn($rwTable, 'amount') && Schema::hasColumn($rwTable, 'type')) {
+                $debitTypes = ['debit', 'dr', 'deduct', 'withdrawal', 'withdraw', 'purchase'];
+
+                $creditAmount = (float) DB::table($rwTable)
+                    ->where($idCol, $identifier)
+                    ->whereNotIn('type', $debitTypes)
+                    ->sum('amount');
+
+                $debitAmount = (float) DB::table($rwTable)
+                    ->where($idCol, $identifier)
+                    ->whereIn('type', $debitTypes)
+                    ->sum('amount');
+
+                $purchaseBalance = round($creditAmount - $debitAmount, 2);
+            }
+        }
+
+        $turnoverBalance = 0.0;
+        if (Schema::hasTable('wallets')) {
+            $walletTable = 'wallets';
+            $walletQuery = DB::table($walletTable);
+
+            if (Schema::hasColumn($walletTable, 'user_id')) {
+                $walletQuery->where(function ($query) use ($memberId, $userId) {
+                    $query->where('user_id', $memberId)
+                        ->orWhere('user_id', (string) $memberId)
+                        ->orWhere('user_id', $userId);
+                });
+            } elseif (Schema::hasColumn($walletTable, 'member_id')) {
+                $walletQuery->where('member_id', $memberId);
+            }
+
+            $wallet = $walletQuery->first();
+
+            if ($wallet) {
+                $totalIncome = property_exists($wallet, 'total_income') ? (float) ($wallet->total_income ?? 0) : 0.0;
+                $matchingIncome = property_exists($wallet, 'matching_income') ? (float) ($wallet->matching_income ?? 0) : 0.0;
+                $royaltyIncome = property_exists($wallet, 'royalty_income') ? (float) ($wallet->royalty_income ?? 0) : 0.0;
+
+                $turnoverBalance = $totalIncome > 0
+                    ? round($totalIncome, 2)
+                    : round($matchingIncome + $royaltyIncome, 2);
+            }
+        }
+
+        $purchaseOrders = 0;
+        if (Schema::hasTable('repurchase_wallet_transactions')) {
+            $rwTable = 'repurchase_wallet_transactions';
+            $useUserId = Schema::hasColumn($rwTable, 'user_id');
+            $idCol = $useUserId ? 'user_id' : 'member_id';
+            $identifier = $useUserId ? $userId : $memberId;
+
+            $query = DB::table($rwTable)->where($idCol, $identifier);
+
+            if (Schema::hasColumn($rwTable, 'created_at')) {
+                $query->whereDate('created_at', '>=', $monthStart)
+                    ->whereDate('created_at', '<=', $monthEnd);
+            }
+
+            $purchaseOrders = (int) $query->count();
+        }
+
+        $salesOrders = 0;
+        $salesTurnover = 0.0;
+        if (Schema::hasTable('branch_sales')) {
+            $salesQuery = DB::table('branch_sales');
+
+            if (Schema::hasColumn('branch_sales', 'sale_date')) {
+                $salesQuery->whereDate('sale_date', '>=', $monthStart)
+                    ->whereDate('sale_date', '<=', $monthEnd);
+            }
+
+            if (Schema::hasColumn('branch_sales', 'member_id')) {
+                $salesQuery->where('member_id', $memberId);
+            } elseif (Schema::hasColumn('branch_sales', 'user_id')) {
+                $salesQuery->where('user_id', $userId);
+            }
+
+            $salesOrders = (int) (clone $salesQuery)->count();
+
+            if (Schema::hasColumn('branch_sales', 'sale_amount')) {
+                $salesTurnover = round((float) (clone $salesQuery)->sum('sale_amount'), 2);
+            }
+        }
+
+        $commissionAmount = 0.0;
+        if (Schema::hasTable('loyalty_bonuses') && Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
+            $loyaltyQuery = DB::table('loyalty_bonuses');
+
+            if (Schema::hasColumn('loyalty_bonuses', 'member_id')) {
+                $loyaltyQuery->where('member_id', $memberId);
+            } elseif (Schema::hasColumn('loyalty_bonuses', 'user_id')) {
+                $loyaltyQuery->where('user_id', $userId);
+            }
+
+            if (Schema::hasColumn('loyalty_bonuses', 'month_key')) {
+                $loyaltyQuery->where('month_key', $monthKey);
+            }
+
+            $commissionAmount += (float) $loyaltyQuery->sum('bonus_amount');
+        }
+
+        if (Schema::hasTable('business_monitoring_bonuses') && Schema::hasColumn('business_monitoring_bonuses', 'bonus_amount')) {
+            $businessQuery = DB::table('business_monitoring_bonuses');
+
+            if (Schema::hasColumn('business_monitoring_bonuses', 'member_id')) {
+                $businessQuery->where('member_id', $memberId);
+            } elseif (Schema::hasColumn('business_monitoring_bonuses', 'user_id')) {
+                $businessQuery->where('user_id', $userId);
+            }
+
+            if (Schema::hasColumn('business_monitoring_bonuses', 'cycle_date')) {
+                $businessQuery->whereDate('cycle_date', '>=', $monthStart)
+                    ->whereDate('cycle_date', '<=', $monthEnd);
+            }
+
+            $commissionAmount += (float) $businessQuery->sum('bonus_amount');
+        }
+
+        return response()->json([
+            'data' => [
+                'purchase_balance' => round($purchaseBalance, 2),
+                'turnover_balance' => round($turnoverBalance, 2),
+                'purchase_orders' => $purchaseOrders,
+                'sales_orders' => $salesOrders,
+                'sales_turnover' => round($salesTurnover, 2),
+                'commission_amount' => round($commissionAmount, 2),
+            ],
         ]);
     }
 
@@ -242,7 +414,7 @@ class MemberController extends Controller
                 'id' => 'step-1',
                 'step' => 1,
                 'label' => '1 Step',
-                'pv' => 250,
+                'pv' => 125,
                 'amount_min' => 1199,
                 'amount_max' => 1500,
                 'cycle_capping' => 1000,
@@ -252,7 +424,7 @@ class MemberController extends Controller
                 'id' => 'step-2',
                 'step' => 2,
                 'label' => '2 Step',
-                'pv' => 500,
+                'pv' => 250,
                 'amount_min' => 1999,
                 'amount_max' => 2500,
                 'cycle_capping' => 2000,
@@ -262,7 +434,7 @@ class MemberController extends Controller
                 'id' => 'step-3',
                 'step' => 3,
                 'label' => '3 Step',
-                'pv' => 750,
+                'pv' => 500,
                 'amount_min' => 2999,
                 'amount_max' => 3500,
                 'cycle_capping' => 3000,
@@ -281,8 +453,8 @@ class MemberController extends Controller
             [
                 'id' => 'step-5',
                 'step' => 5,
-                'label' => '5 Step Pro',
-                'pv' => 1000,
+                'label' => '5 Step',
+                'pv' => 2000,
                 'amount_min' => 5999,
                 'amount_max' => 7500,
                 'cycle_capping' => 5000,
@@ -291,35 +463,40 @@ class MemberController extends Controller
             [
                 'id' => 'step-6',
                 'step' => 6,
-                'label' => '6 Step Pro',
-                'pv' => 2000,
+                'label' => '6 Step',
+                'pv' => 4000,
                 'amount_min' => 11599,
                 'amount_max' => 15000,
                 'cycle_capping' => 10000,
                 'daily_capping' => 20000,
-            ],
-            [
-                'id' => 'step-7',
-                'step' => 7,
-                'label' => '7 Step Pro',
-                'pv' => 4000,
-                'amount_min' => 22999,
-                'amount_max' => 30000,
-                'cycle_capping' => 20000,
-                'daily_capping' => 40000,
             ],
         ];
     }
 
     private function resolveMemberPackageId(Member $member): ?string
     {
-        $step = (int) ($member->package_step ?? $member->step_level ?? 0);
+        $step = $this->resolveMemberPackageStep($member);
 
         if ($step <= 0) {
             return null;
         }
 
         return 'step-' . $step;
+    }
+
+    private function resolveMemberPackageStep(Member $member): int
+    {
+        $step = (int) ($member->package_step ?? $member->step_level ?? 0);
+
+        if ($step <= 0) {
+            return 0;
+        }
+
+        if ($step > 6) {
+            return 6;
+        }
+
+        return $step;
     }
 
     private function findPackageById(string $packageId): ?array
