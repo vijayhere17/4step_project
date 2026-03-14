@@ -14,116 +14,119 @@ use Illuminate\Support\Facades\Schema;
 class MemberController extends Controller
 {
    
-
- private function findMemberByUserId($userId)
-    {
-        return Member::where('user_id', $userId)->first();
-    }
-
-    /* ---------------------------------
-        PROFILE
-    ---------------------------------*/
-
-    public function profile(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|string'
-        ]);
-
-        $member = $this->findMemberByUserId($request->user_id);
-
-        if (!$member) {
-            return response()->json(['message' => 'Member not found'], 404);
-        }
-
-        return response()->json($member);
-    }
-
-    public function updateProfile(Request $request)
-    {
-        $validated = $request->validate([
-            'user_id' => 'required|string|exists:members,user_id',
-            'fullname' => 'nullable|string|max:255',
-            'dob' => 'nullable|date',
-            'gender' => 'nullable|string',
-            'email' => 'nullable|email',
-            'mobile_no' => 'nullable|string',
-            'address' => 'nullable|string',
-            'pin_code' => 'nullable|string',
-            'state' => 'nullable|string',
-            'city' => 'nullable|string',
-            'district' => 'nullable|string',
-        ]);
-
-        $member = $this->findMemberByUserId($validated['user_id']);
-        $member->update($validated);
-
-        return response()->json([
-            'message' => 'Profile updated successfully',
-            'member' => $member
-        ]);
-    }
-
+    private const PACKAGES = [
+        ['id' => 'step-1', 'step' => 1, 'label' => '1 Step', 'pv' => 125,  'amount_min' => 1199,  'amount_max' => 1500,  'cycle_capping' => 1000,  'daily_capping' => 2000],
+        ['id' => 'step-2', 'step' => 2, 'label' => '2 Step', 'pv' => 250,  'amount_min' => 1999,  'amount_max' => 2500,  'cycle_capping' => 2000,  'daily_capping' => 4000],
+        ['id' => 'step-3', 'step' => 3, 'label' => '3 Step', 'pv' => 500,  'amount_min' => 2999,  'amount_max' => 3500,  'cycle_capping' => 3000,  'daily_capping' => 6000],
+        ['id' => 'step-4', 'step' => 4, 'label' => '4 Step', 'pv' => 1000, 'amount_min' => 3999,  'amount_max' => 4500,  'cycle_capping' => 5000,  'daily_capping' => 10000],
+        ['id' => 'step-5', 'step' => 5, 'label' => '5 Step', 'pv' => 2000, 'amount_min' => 5999,  'amount_max' => 7500,  'cycle_capping' => 5000,  'daily_capping' => 10000],
+        ['id' => 'step-6', 'step' => 6, 'label' => '6 Step', 'pv' => 4000, 'amount_min' => 11599, 'amount_max' => 15000, 'cycle_capping' => 10000, 'daily_capping' => 20000],
+    ];
     public function signup(Request $request)
     {
-        $validated = $request->validate([
+        $data = $request->validate([
             'sponsorId' => 'required|string',
-            'position' => 'required|in:left,right',
-            'fullname' => 'required|string|max:255',
-            'dob' => 'required|date',
-            'gender' => 'required|string',
-            'email' => 'nullable|email|unique:members,email',
-            'mobileNo' => 'required|string|max:15|unique:members,mobile_no',
-            'password' => 'required|string|min:6',
-            'address' => 'nullable|string',
-            'pinCode' => 'nullable|string|max:10',
-            'state' => 'nullable|string',
-            'city' => 'nullable|string',
-            'district' => 'nullable|string',
+            'position'  => 'required|in:left,right',
+            'fullname'  => 'required|string|max:255',
+            'dob'       => 'required|date',
+            'gender'    => 'required|string',
+            'email'     => 'nullable|email|unique:members,email',
+            'mobileNo'  => 'required|string|max:15|unique:members,mobile_no',
+            'password'  => 'required|string|min:6',
+            'address'   => 'nullable|string',
+            'pinCode'   => 'nullable|string|max:10',
+            'state'     => 'nullable|string',
+            'city'      => 'nullable|string',
+            'district'  => 'nullable|string',
         ]);
 
-        $sponsor = Member::where('user_id', $validated['sponsorId'])->first();
+        $sponsor = Member::where('user_id', $data['sponsorId'])->first();
 
         if (!$sponsor || $sponsor->status != 1) {
             return response()->json(['message' => 'Sponsor not found or not active'], 422);
         }
 
-        $placement = $this->findSpotInLeg($sponsor->id, $validated['position']);
+        $slot = $this->findSpotInLeg($sponsor->id, $data['position']);
 
-        if (!$placement) {
+        if (!$slot) {
             return response()->json(['message' => 'No available position found'], 422);
         }
 
         $member = Member::create([
             'sponsor_id' => $sponsor->id,
-            'parent_id' => $placement['parent_id'],
-            'position' => $placement['position'],
-            'fullname' => $validated['fullname'],
-            'dob' => $validated['dob'],
-            'gender' => $validated['gender'],
-            'email' => $validated['email'] ?? null,
-            'mobile_no' => $validated['mobileNo'],
-            'password' => Hash::make($validated['password']),
-            'address' => $validated['address'] ?? null,
-            'pin_code' => $validated['pinCode'] ?? null,
-            'state' => $validated['state'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'district' => $validated['district'] ?? null,
-            'status' => 0,
+            'parent_id'  => $slot['parent_id'],
+            'position'   => $slot['position'],
+            'fullname'   => $data['fullname'],
+            'dob'        => $data['dob'],
+            'gender'     => $data['gender'],
+            'email'      => $data['email'] ?? null,
+            'mobile_no'  => $data['mobileNo'],
+            'password'   => Hash::make($data['password']),
+            'address'    => $data['address'] ?? null,
+            'pin_code'   => $data['pinCode'] ?? null,
+            'state'      => $data['state'] ?? null,
+            'city'       => $data['city'] ?? null,
+            'district'   => $data['district'] ?? null,
+            'status'     => 0, 
         ]);
 
-        return response()->json([
-            'message' => 'Member created successfully',
-            'member' => $member,
-        ], 201);
+        return response()->json(['message' => 'Member created successfully', 'member' => $member], 201);
     }
+    public function internalAdd(Request $request)
+    {
+        $data = $request->validate([
+            'sponsorId' => 'required|string',
+            'position'  => 'required|in:left,right',
+            'fullname'  => 'required|string|max:255',
+            'dob'       => 'nullable|date',
+            'gender'    => 'nullable|string',
+            'email'     => 'nullable|email|unique:members,email',
+            'mobileNo'  => 'required|string|max:15|unique:members,mobile_no',
+            'address'   => 'nullable|string',
+            'pinCode'   => 'nullable|string|max:10',
+            'state'     => 'nullable|string',
+            'city'      => 'nullable|string',
+            'district'  => 'nullable|string',
+        ]);
 
+        $sponsor = Member::where('user_id', $data['sponsorId'])->first();
+
+        if (!$sponsor) {
+            return response()->json(['message' => 'Sponsor not found'], 422);
+        }
+
+        $slot = $this->findSpotInLeg($sponsor->id, $data['position']);
+
+        if (!$slot) {
+            return response()->json(['message' => 'No available position found'], 422);
+        }
+
+        $member = Member::create([
+            'sponsor_id' => $sponsor->id,
+            'parent_id'  => $slot['parent_id'],
+            'position'   => $slot['position'],
+            'fullname'   => $data['fullname'],
+            'dob'        => $data['dob'] ?? null,
+            'gender'     => $data['gender'] ?? null,
+            'email'      => $data['email'] ?? null,
+            'mobile_no'  => $data['mobileNo'],
+            'password'   => Hash::make($data['mobileNo']), 
+            'address'    => $data['address'] ?? null,
+            'pin_code'   => $data['pinCode'] ?? null,
+            'state'      => $data['state'] ?? null,
+            'city'       => $data['city'] ?? null,
+            'district'   => $data['district'] ?? null,
+            'status'     => 0,
+        ]);
+
+        return response()->json(['message' => 'Member added successfully', 'member' => $member], 201);
+    }
 
     public function signin(Request $request)
     {
         $request->validate([
             'identifier' => 'required|string',
-            'password' => 'required|string',
+            'password'   => 'required|string',
         ]);
 
         $id = $request->identifier;
@@ -137,227 +140,101 @@ class MemberController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        return response()->json([
-            'message' => 'Login successful',
-            'member' => $member,
-        ]);
+        return response()->json(['message' => 'Login successful', 'member' => $member]);
     }
-
-
-    public function dashboard(Request $request)
+    public function profile(Request $request)
     {
-        $userId = $request->header('X-Auth-Member');
+        $request->validate(['user_id' => 'required|string']);
 
-        if (!$userId) {
-            return response()->json(['message' => 'Missing member header'], 401);
-        }
-
-        $member = Member::where('user_id', $userId)->first();
+        $member = $this->findMemberByUserId($request->user_id);
 
         if (!$member) {
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        $leftChild = Member::where('parent_id', $member->id)
-            ->where('position', 'left')
-            ->first();
+        return response()->json($member);
+    }
+    public function updateProfile(Request $request)
+    {
+        $data = $request->validate([
+            'user_id'   => 'required|string|exists:members,user_id',
+            'fullname'  => 'nullable|string|max:255',
+            'dob'       => 'nullable|date',
+            'gender'    => 'nullable|string',
+            'email'     => 'nullable|email',
+            'mobile_no' => 'nullable|string',
+            'address'   => 'nullable|string',
+            'pin_code'  => 'nullable|string',
+            'state'     => 'nullable|string',
+            'city'      => 'nullable|string',
+            'district'  => 'nullable|string',
+        ]);
 
-        $rightChild = Member::where('parent_id', $member->id)
-            ->where('position', 'right')
-            ->first();
+        $member = $this->findMemberByUserId($data['user_id']);
+        $member->update($data);
 
-        $leftCount = $leftChild ? 1 + $this->countDownline($leftChild->id) : 0;
+        return response()->json(['message' => 'Profile updated successfully', 'member' => $member]);
+    }
+    public function dashboard(Request $request)
+    {
+        $member = $this->getMemberFromHeader($request);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found or missing header'], 401);
+        }
+        $leftChild  = Member::where('parent_id', $member->id)->where('position', 'left')->first();
+        $rightChild = Member::where('parent_id', $member->id)->where('position', 'right')->first();
+
+        $leftCount  = $leftChild  ? 1 + $this->countDownline($leftChild->id)  : 0;
         $rightCount = $rightChild ? 1 + $this->countDownline($rightChild->id) : 0;
 
         return response()->json([
-            'left_members' => $leftCount,
-            'right_members' => $rightCount,
-            'total_team' => $leftCount + $rightCount,
-            'packages' => $this->getPackageCatalog(),
-            'selected_package_id' => $this->resolveMemberPackageId($member),
+            'left_members'          => $leftCount,
+            'right_members'         => $rightCount,
+            'total_team'            => $leftCount + $rightCount,
+            'packages'              => self::PACKAGES,
+            'selected_package_id'   => $this->resolveMemberPackageId($member),
             'selected_package_step' => $this->resolveMemberPackageStep($member),
-            'package_step' => (int) ($member->package_step ?? 0),
-            'step_level' => (int) ($member->step_level ?? 0),
-            'status' => (int) ($member->status ?? 0),
+            'package_step'          => (int) ($member->package_step ?? 0),
+            'step_level'            => (int) ($member->step_level ?? 0),
+            'status'                => (int) ($member->status ?? 0),
         ]);
     }
-
     public function dashboardStats(Request $request)
     {
-        $userId = $request->header('X-Auth-Member');
-
-        if (!$userId) {
-            return response()->json(['message' => 'Missing member header'], 401);
-        }
-
-        $member = Member::where('user_id', $userId)->first();
+        $member = $this->getMemberFromHeader($request);
 
         if (!$member) {
-            return response()->json(['message' => 'Member not found'], 404);
+            return response()->json(['message' => 'Member not found or missing header'], 401);
         }
 
-        $memberId = (int) $member->id;
+        $memberId   = (int) $member->id;
+        $userId     = (string) $request->header('X-Auth-Member');
         $monthStart = now()->startOfMonth()->toDateString();
-        $monthEnd = now()->endOfMonth()->toDateString();
-        $monthKey = now()->format('Y-m');
+        $monthEnd   = now()->endOfMonth()->toDateString();
+        $monthKey   = now()->format('Y-m');
 
-        $purchaseBalance = 0.0;
-        if (Schema::hasTable('repurchase_wallet_transactions')) {
-            $rwTable = 'repurchase_wallet_transactions';
-            $useUserId = Schema::hasColumn($rwTable, 'user_id');
-            $idCol = $useUserId ? 'user_id' : 'member_id';
-            $identifier = $useUserId ? $userId : $memberId;
-
-            if (Schema::hasColumn($rwTable, 'balance_after')) {
-                $latestBalance = DB::table($rwTable)
-                    ->where($idCol, $identifier)
-                    ->orderByDesc('id')
-                    ->value('balance_after');
-
-                if ($latestBalance !== null) {
-                    $purchaseBalance = round((float) $latestBalance, 2);
-                }
-            }
-
-            if ($purchaseBalance === 0.0 && Schema::hasColumn($rwTable, 'amount') && Schema::hasColumn($rwTable, 'type')) {
-                $debitTypes = ['debit', 'dr', 'deduct', 'withdrawal', 'withdraw', 'purchase'];
-
-                $creditAmount = (float) DB::table($rwTable)
-                    ->where($idCol, $identifier)
-                    ->whereNotIn('type', $debitTypes)
-                    ->sum('amount');
-
-                $debitAmount = (float) DB::table($rwTable)
-                    ->where($idCol, $identifier)
-                    ->whereIn('type', $debitTypes)
-                    ->sum('amount');
-
-                $purchaseBalance = round($creditAmount - $debitAmount, 2);
-            }
-        }
-
-        $turnoverBalance = 0.0;
-        if (Schema::hasTable('wallets')) {
-            $walletTable = 'wallets';
-            $walletQuery = DB::table($walletTable);
-
-            if (Schema::hasColumn($walletTable, 'user_id')) {
-                $walletQuery->where(function ($query) use ($memberId, $userId) {
-                    $query->where('user_id', $memberId)
-                        ->orWhere('user_id', (string) $memberId)
-                        ->orWhere('user_id', $userId);
-                });
-            } elseif (Schema::hasColumn($walletTable, 'member_id')) {
-                $walletQuery->where('member_id', $memberId);
-            }
-
-            $wallet = $walletQuery->first();
-
-            if ($wallet) {
-                $totalIncome = property_exists($wallet, 'total_income') ? (float) ($wallet->total_income ?? 0) : 0.0;
-                $matchingIncome = property_exists($wallet, 'matching_income') ? (float) ($wallet->matching_income ?? 0) : 0.0;
-                $royaltyIncome = property_exists($wallet, 'royalty_income') ? (float) ($wallet->royalty_income ?? 0) : 0.0;
-
-                $turnoverBalance = $totalIncome > 0
-                    ? round($totalIncome, 2)
-                    : round($matchingIncome + $royaltyIncome, 2);
-            }
-        }
-
-        $purchaseOrders = 0;
-        if (Schema::hasTable('repurchase_wallet_transactions')) {
-            $rwTable = 'repurchase_wallet_transactions';
-            $useUserId = Schema::hasColumn($rwTable, 'user_id');
-            $idCol = $useUserId ? 'user_id' : 'member_id';
-            $identifier = $useUserId ? $userId : $memberId;
-
-            $query = DB::table($rwTable)->where($idCol, $identifier);
-
-            if (Schema::hasColumn($rwTable, 'created_at')) {
-                $query->whereDate('created_at', '>=', $monthStart)
-                    ->whereDate('created_at', '<=', $monthEnd);
-            }
-
-            $purchaseOrders = (int) $query->count();
-        }
-
-        $salesOrders = 0;
-        $salesTurnover = 0.0;
-        if (Schema::hasTable('branch_sales')) {
-            $salesQuery = DB::table('branch_sales');
-
-            if (Schema::hasColumn('branch_sales', 'sale_date')) {
-                $salesQuery->whereDate('sale_date', '>=', $monthStart)
-                    ->whereDate('sale_date', '<=', $monthEnd);
-            }
-
-            if (Schema::hasColumn('branch_sales', 'member_id')) {
-                $salesQuery->where('member_id', $memberId);
-            } elseif (Schema::hasColumn('branch_sales', 'user_id')) {
-                $salesQuery->where('user_id', $userId);
-            }
-
-            $salesOrders = (int) (clone $salesQuery)->count();
-
-            if (Schema::hasColumn('branch_sales', 'sale_amount')) {
-                $salesTurnover = round((float) (clone $salesQuery)->sum('sale_amount'), 2);
-            }
-        }
-
-        $commissionAmount = 0.0;
-        if (Schema::hasTable('loyalty_bonuses') && Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
-            $loyaltyQuery = DB::table('loyalty_bonuses');
-
-            if (Schema::hasColumn('loyalty_bonuses', 'member_id')) {
-                $loyaltyQuery->where('member_id', $memberId);
-            } elseif (Schema::hasColumn('loyalty_bonuses', 'user_id')) {
-                $loyaltyQuery->where('user_id', $userId);
-            }
-
-            if (Schema::hasColumn('loyalty_bonuses', 'month_key')) {
-                $loyaltyQuery->where('month_key', $monthKey);
-            }
-
-            $commissionAmount += (float) $loyaltyQuery->sum('bonus_amount');
-        }
-
-        if (Schema::hasTable('business_monitoring_bonuses') && Schema::hasColumn('business_monitoring_bonuses', 'bonus_amount')) {
-            $businessQuery = DB::table('business_monitoring_bonuses');
-
-            if (Schema::hasColumn('business_monitoring_bonuses', 'member_id')) {
-                $businessQuery->where('member_id', $memberId);
-            } elseif (Schema::hasColumn('business_monitoring_bonuses', 'user_id')) {
-                $businessQuery->where('user_id', $userId);
-            }
-
-            if (Schema::hasColumn('business_monitoring_bonuses', 'cycle_date')) {
-                $businessQuery->whereDate('cycle_date', '>=', $monthStart)
-                    ->whereDate('cycle_date', '<=', $monthEnd);
-            }
-
-            $commissionAmount += (float) $businessQuery->sum('bonus_amount');
-        }
+        $salesData = $this->getSalesData($memberId, $userId, $monthStart, $monthEnd);
 
         return response()->json([
             'data' => [
-                'purchase_balance' => round($purchaseBalance, 2),
-                'turnover_balance' => round($turnoverBalance, 2),
-                'purchase_orders' => $purchaseOrders,
-                'sales_orders' => $salesOrders,
-                'sales_turnover' => round($salesTurnover, 2),
-                'commission_amount' => round($commissionAmount, 2),
+                'purchase_balance'  => $this->getPurchaseBalance($memberId, $userId),
+                'turnover_balance'  => $this->getTurnoverBalance($memberId, $userId),
+                'purchase_orders'   => $this->getPurchaseOrders($memberId, $userId, $monthStart, $monthEnd),
+                'sales_orders'      => $salesData['count'],
+                'sales_turnover'    => $salesData['turnover'],
+                'commission_amount' => $this->getCommissionAmount($memberId, $userId, $monthStart, $monthEnd, $monthKey),
             ],
         ]);
     }
-
     public function activatePackage(Request $request)
     {
-        $validated = $request->validate([
+        $data = $request->validate([
             'package_id' => 'required|string',
-            'user_id' => 'nullable|string',
+            'user_id'    => 'nullable|string',
         ]);
 
-        $userId = $request->header('X-Auth-Member') ?: ($validated['user_id'] ?? null);
+        $userId = $request->header('X-Auth-Member') ?: ($data['user_id'] ?? null);
 
         if (!$userId) {
             return response()->json(['message' => 'Missing member identifier'], 401);
@@ -369,28 +246,27 @@ class MemberController extends Controller
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        $packageId = trim((string) $validated['package_id']);
-        $selectedPackage = $this->findPackageById($packageId);
+        $package = $this->findPackageById(trim($data['package_id']));
 
-        if (!$selectedPackage) {
+        if (!$package) {
             return response()->json(['message' => 'Invalid package selected'], 422);
         }
 
         $updateData = [
-            'status' => 1,
+            'status'          => 1,
             'activation_date' => now(),
         ];
 
         if (Schema::hasColumn('members', 'package_step')) {
-            $updateData['package_step'] = (int) $selectedPackage['step'];
+            $updateData['package_step'] = (int) $package['step'];
         }
 
         if (Schema::hasColumn('members', 'step_level')) {
-            $updateData['step_level'] = (int) $selectedPackage['step'];
+            $updateData['step_level'] = (int) $package['step'];
         }
 
         if (Schema::hasColumn('members', 'activation_amount')) {
-            $updateData['activation_amount'] = (int) $selectedPackage['amount_min'];
+            $updateData['activation_amount'] = (int) $package['amount_min'];
         }
 
         Member::where('id', $member->id)->update($updateData);
@@ -398,251 +274,64 @@ class MemberController extends Controller
 
         return response()->json([
             'message' => 'Package activated successfully',
-            'member' => [
-                'user_id' => $member->user_id,
-                'status' => (int) $member->status,
-                'activation_date' => $member->activation_date,
-                'selected_package_id' => $packageId,
+            'member'  => [
+                'user_id'             => $member->user_id,
+                'status'              => (int) $member->status,
+                'activation_date'     => $member->activation_date,
+                'selected_package_id' => $data['package_id'],
             ],
         ]);
     }
-
-    private function getPackageCatalog(): array
-    {
-        return [
-            [
-                'id' => 'step-1',
-                'step' => 1,
-                'label' => '1 Step',
-                'pv' => 125,
-                'amount_min' => 1199,
-                'amount_max' => 1500,
-                'cycle_capping' => 1000,
-                'daily_capping' => 2000,
-            ],
-            [
-                'id' => 'step-2',
-                'step' => 2,
-                'label' => '2 Step',
-                'pv' => 250,
-                'amount_min' => 1999,
-                'amount_max' => 2500,
-                'cycle_capping' => 2000,
-                'daily_capping' => 4000,
-            ],
-            [
-                'id' => 'step-3',
-                'step' => 3,
-                'label' => '3 Step',
-                'pv' => 500,
-                'amount_min' => 2999,
-                'amount_max' => 3500,
-                'cycle_capping' => 3000,
-                'daily_capping' => 6000,
-            ],
-            [
-                'id' => 'step-4',
-                'step' => 4,
-                'label' => '4 Step',
-                'pv' => 1000,
-                'amount_min' => 3999,
-                'amount_max' => 4500,
-                'cycle_capping' => 5000,
-                'daily_capping' => 10000,
-            ],
-            [
-                'id' => 'step-5',
-                'step' => 5,
-                'label' => '5 Step',
-                'pv' => 2000,
-                'amount_min' => 5999,
-                'amount_max' => 7500,
-                'cycle_capping' => 5000,
-                'daily_capping' => 10000,
-            ],
-            [
-                'id' => 'step-6',
-                'step' => 6,
-                'label' => '6 Step',
-                'pv' => 4000,
-                'amount_min' => 11599,
-                'amount_max' => 15000,
-                'cycle_capping' => 10000,
-                'daily_capping' => 20000,
-            ],
-        ];
-    }
-
-    private function resolveMemberPackageId(Member $member): ?string
-    {
-        $step = $this->resolveMemberPackageStep($member);
-
-        if ($step <= 0) {
-            return null;
-        }
-
-        return 'step-' . $step;
-    }
-
-    private function resolveMemberPackageStep(Member $member): int
-    {
-        $step = (int) ($member->package_step ?? $member->step_level ?? 0);
-
-        if ($step <= 0) {
-            return 0;
-        }
-
-        if ($step > 6) {
-            return 6;
-        }
-
-        return $step;
-    }
-
-    private function findPackageById(string $packageId): ?array
-    {
-        foreach ($this->getPackageCatalog() as $package) {
-            if (($package['id'] ?? null) === $packageId) {
-                return $package;
-            }
-        }
-
-        return null;
-    }
-
-
-    private function findSpotInLeg($rootId, $leg)
-    {
-        // Check direct leg
-        $legRoot = Member::where('parent_id', $rootId)
-            ->where('position', $leg)
-            ->first();
-
-        // If direct leg empty
-        if (!$legRoot) {
-            return [
-                'parent_id' => $rootId,
-                'position' => $leg
-            ];
-        }
-
-        // BFS search inside that leg
-        $queue = [$legRoot->id];
-
-        while (!empty($queue)) {
-            $currentId = array_shift($queue);
-
-            $leftChild = Member::where('parent_id', $currentId)
-                ->where('position', 'left')
-                ->first();
-
-            if (!$leftChild) {
-                return [
-                    'parent_id' => $currentId,
-                    'position' => 'left'
-                ];
-            }
-
-            $rightChild = Member::where('parent_id', $currentId)
-                ->where('position', 'right')
-                ->first();
-
-            if (!$rightChild) {
-                return [
-                    'parent_id' => $currentId,
-                    'position' => 'right'
-                ];
-            }
-
-            $queue[] = $leftChild->id;
-            $queue[] = $rightChild->id;
-        }
-
-        return null;
-    }
-
-    private function countDownline($memberId)
-    {
-        $children = Member::where('parent_id', $memberId)->get();
-
-        $count = 0;
-
-        foreach ($children as $child) {
-            $count++;
-            $count += $this->countDownline($child->id);
-        }
-
-        return $count;
-    }
-
     public function checkSponsor(Request $request)
-{
-    $request->validate([
-        'sponsorId' => 'required|string'
-    ]);
+    {
+        $request->validate(['sponsorId' => 'required|string']);
 
-    $sponsor = Member::where('user_id', $request->sponsorId)->first();
+        $sponsor = Member::where('user_id', $request->sponsorId)->first();
 
-    if (!$sponsor) {
-        return response()->json(['message' => 'Sponsor not found'], 404);
+        if (!$sponsor) {
+            return response()->json(['message' => 'Sponsor not found'], 404);
+        }
+
+        return response()->json([
+            'sponsor' => [
+                'id'       => $sponsor->id,
+                'user_id'  => $sponsor->user_id,
+                'fullname' => $sponsor->fullname,
+                'status'   => $sponsor->status,
+            ],
+        ]);
+    }
+    public function tree(Request $request)
+    {
+        $member = $this->getMemberFromHeader($request);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found or missing header'], 401);
+        }
+
+        return response()->json(['tree' => $this->buildTree($member->id, 4)]);
     }
 
-    return response()->json([
-        'sponsor' => [
-            'id' => $sponsor->id,
-            'user_id' => $sponsor->user_id,
-            'fullname' => $sponsor->fullname,
-            'status' => $sponsor->status,
-        ]
-    ]);
-}
+    public function getDownline(Request $request)
+    {
+        $userId = $request->header('X-Auth-Member') ?: $request->query('user_id');
 
-   public function tree(Request $request)
-{
-    $userId = $request->header('X-Auth-Member');
+        if (!$userId) {
+            return response()->json(['message' => 'Missing member identifier'], 401);
+        }
 
-    if (!$userId) {
-        return response()->json(['message' => 'Missing member header'], 401);
+        $member = Member::where('user_id', $userId)->first();
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
+        return response()->json([
+            'left'  => $this->getAllDownline($member->id, 'left',  []),
+            'right' => $this->getAllDownline($member->id, 'right', []),
+        ]);
     }
-
-    $member = Member::where('user_id', $userId)->first();
-
-    if (!$member) {
-        return response()->json(['message' => 'Member not found'], 404);
-    }
-
-    return response()->json([
-        'tree' => $this->buildTree($member->id, 4) // 4 levels
-    ]);
-}
-
-private function buildTree($memberId, $levels)
-{
-    if ($levels == 0) return null;
-
-    $member = Member::find($memberId);
-
-    if (!$member) return null;
-
-    $left = Member::where('parent_id', $memberId)
-        ->where('position', 'left')
-        ->first();
-
-    $right = Member::where('parent_id', $memberId)
-        ->where('position', 'right')
-        ->first();
-
-    return [
-        'id' => $member->id,
-        'user_id' => $member->user_id,
-        'fullname' => $member->fullname,
-        'status' => $member->status,
-        'left' => $left ? $this->buildTree($left->id, $levels - 1) : null,
-        'right' => $right ? $this->buildTree($right->id, $levels - 1) : null,
-    ];
-}
-
-  public function getKyc(Request $request)
+    public function getKyc(Request $request)
     {
         $request->validate(['user_id' => 'required|string']);
 
@@ -652,70 +341,51 @@ private function buildTree($memberId, $levels)
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        return response()->json(
-            MyKyc::where('member_id', $member->id)->first()
-        );
+        return response()->json(MyKyc::where('member_id', $member->id)->first());
     }
-
     public function upsertKyc(Request $request)
     {
-        $validated = $request->validate([
-            'user_id' => 'required|string',
+        $data = $request->validate([
+            'user_id'                  => 'required|string',
             'account_beneficiary_name' => 'required|string',
-            'account_no' => 'required|string',
-            're_account_no' => 'required|string',
-            'ifs_code' => 'required|string',
-            'bank_name' => 'required|string',
-            'branch_name' => 'required|string',
-            'aadhar_number' => 'required|string',
-            'pan_number' => 'required|string',
+            'account_no'               => 'required|string',
+            're_account_no'            => 'required|string',
+            'ifs_code'                 => 'required|string',
+            'bank_name'                => 'required|string',
+            'branch_name'              => 'required|string',
+            'aadhar_number'            => 'required|string',
+            'pan_number'               => 'required|string',
         ]);
 
-        if ($validated['account_no'] !== $validated['re_account_no']) {
+        if ($data['account_no'] !== $data['re_account_no']) {
             return response()->json(['message' => 'Account numbers do not match'], 422);
         }
 
-        $member = $this->findMemberByUserId($validated['user_id']);
+        $member = $this->findMemberByUserId($data['user_id']);
 
         if (!$member) {
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        $existingKyc = MyKyc::where('member_id', $member->id)->first();
-
-        $bankDetails = $existingKyc
-            ? [
-                'account_beneficiary_name' => $existingKyc->account_beneficiary_name,
-                'account_no' => $existingKyc->account_no,
-                'ifs_code' => $existingKyc->ifs_code,
-                'bank_name' => $existingKyc->bank_name,
-                'branch_name' => $existingKyc->branch_name,
-            ]
-            : [
-                'account_beneficiary_name' => $validated['account_beneficiary_name'],
-                'account_no' => $validated['account_no'],
-                'ifs_code' => strtoupper($validated['ifs_code']),
-                'bank_name' => $validated['bank_name'],
-                'branch_name' => $validated['branch_name'],
-            ];
+        $existing = MyKyc::where('member_id', $member->id)->first();
 
         $kyc = MyKyc::updateOrCreate(
             ['member_id' => $member->id],
             [
-                'user_id' => $member->user_id,
-                ...$bankDetails,
-                'aadhar_number' => $existingKyc ? $existingKyc->aadhar_number : $validated['aadhar_number'],
-                'pan_number' => $existingKyc ? $existingKyc->pan_number : strtoupper($validated['pan_number']),
-                'otp_verified' => true,
+                'user_id'                  => $member->user_id,
+                'account_beneficiary_name' => $existing ? $existing->account_beneficiary_name : $data['account_beneficiary_name'],
+                'account_no'               => $existing ? $existing->account_no               : $data['account_no'],
+                'ifs_code'                 => $existing ? $existing->ifs_code                 : strtoupper($data['ifs_code']),
+                'bank_name'                => $existing ? $existing->bank_name                : $data['bank_name'],
+                'branch_name'              => $existing ? $existing->branch_name              : $data['branch_name'],
+                'aadhar_number'            => $existing ? $existing->aadhar_number            : $data['aadhar_number'],
+                'pan_number'               => $existing ? $existing->pan_number               : strtoupper($data['pan_number']),
+                'otp_verified'             => true,
             ]
         );
 
-        return response()->json([
-            'message' => 'KYC updated successfully',
-            'kyc' => $kyc
-        ]);
+        return response()->json(['message' => 'KYC updated successfully', 'kyc' => $kyc]);
     }
-
     public function getIdCard(Request $request)
     {
         $request->validate(['user_id' => 'required|string']);
@@ -733,112 +403,315 @@ private function buildTree($memberId, $levels)
         }
 
         return response()->json([
-            'id_card' => $idCard,
+            'id_card'   => $idCard,
             'photo_url' => Storage::url($idCard->file_path),
         ]);
     }
-
     public function uploadIdCard(Request $request)
     {
-        $validated = $request->validate([
+        $data = $request->validate([
             'user_id' => 'required|string',
-            'photo' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'photo'   => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        $member = $this->findMemberByUserId($validated['user_id']);
+        $member = $this->findMemberByUserId($data['user_id']);
 
         if (!$member) {
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        $existingIdCard = IdCard::where('member_id', $member->id)->first();
+        $existing = IdCard::where('member_id', $member->id)->first();
 
-        if ($existingIdCard && $existingIdCard->file_path && Storage::disk('public')->exists($existingIdCard->file_path)) {
-            Storage::disk('public')->delete($existingIdCard->file_path);
+        if ($existing && $existing->file_path && Storage::disk('public')->exists($existing->file_path)) {
+            Storage::disk('public')->delete($existing->file_path);
         }
 
-        $photo = $request->file('photo');
+        $photo      = $request->file('photo');
         $storedPath = $photo->store('id_cards', 'public');
 
         $idCard = IdCard::updateOrCreate(
             ['member_id' => $member->id],
             [
-                'user_id' => $member->user_id,
-                'file_path' => $storedPath,
+                'user_id'       => $member->user_id,
+                'file_path'     => $storedPath,
                 'original_name' => $photo->getClientOriginalName(),
-                'mime_type' => $photo->getClientMimeType(),
-                'file_size' => $photo->getSize(),
+                'mime_type'     => $photo->getClientMimeType(),
+                'file_size'     => $photo->getSize(),
             ]
         );
 
         return response()->json([
-            'message' => 'ID card photo uploaded successfully',
-            'id_card' => $idCard,
+            'message'   => 'ID card photo uploaded successfully',
+            'id_card'   => $idCard,
             'photo_url' => Storage::url($idCard->file_path),
         ]);
     }
+    public function matchingStatus(Request $request)
+    {
+        $userId = 1; // TODO: replace with authenticated member ID
 
-public function getDownline(Request $request)
-{
-    $memberUserId = $request->header('X-Auth-Member') ?: $request->query('user_id');
+        $history = \App\Models\MatchingHistory::where('user_id', $userId)
+            ->orderBy('match_date', 'desc')
+            ->get();
 
-    if (!$memberUserId) {
-        return response()->json(['message' => 'Missing member identifier'], 401);
+        return response()->json($history);
+    }
+    private function findMemberByUserId(string $userId): ?Member
+    {
+        return Member::where('user_id', $userId)->first();
+    }
+    private function getMemberFromHeader(Request $request): ?Member
+    {
+        $userId = $request->header('X-Auth-Member');
+
+        if (!$userId) {
+            return null;
+        }
+
+        return Member::where('user_id', $userId)->first();
     }
 
-    $user = Member::where('user_id', $memberUserId)->first();
+    private function resolveMemberPackageStep(Member $member): int
+    {
+        $step = (int) ($member->package_step ?? $member->step_level ?? 0);
 
-    if (!$user) {
-        return response()->json(['message' => 'Member not found'], 404);
+        return max(0, min(6, $step));
+    }
+    private function resolveMemberPackageId(Member $member): ?string
+    {
+        $step = $this->resolveMemberPackageStep($member);
+
+        return $step > 0 ? 'step-' . $step : null;
+    }
+    private function findPackageById(string $packageId): ?array
+    {
+        foreach (self::PACKAGES as $package) {
+            if ($package['id'] === $packageId) {
+                return $package;
+            }
+        }
+
+        return null;
+    }
+    private function findSpotInLeg(int $rootId, string $leg): ?array
+    {
+        $directChild = Member::where('parent_id', $rootId)->where('position', $leg)->first();
+
+        if (!$directChild) {
+            return ['parent_id' => $rootId, 'position' => $leg];
+        }
+        $queue = [$directChild->id];
+
+        while (!empty($queue)) {
+            $currentId = array_shift($queue);
+
+            $left  = Member::where('parent_id', $currentId)->where('position', 'left')->first();
+            $right = Member::where('parent_id', $currentId)->where('position', 'right')->first();
+
+            if (!$left)  return ['parent_id' => $currentId, 'position' => 'left'];
+            if (!$right) return ['parent_id' => $currentId, 'position' => 'right'];
+
+            $queue[] = $left->id;
+            $queue[] = $right->id;
+        }
+
+        return null; // no open slot found
+    }
+    private function countDownline(int $memberId): int
+    {
+        $count = 0;
+
+        foreach (Member::where('parent_id', $memberId)->get() as $child) {
+            $count++;
+            $count += $this->countDownline($child->id);
+        }
+
+        return $count;
+    }
+    private function buildTree(int $memberId, int $levels): ?array
+    {
+        if ($levels === 0) return null;
+
+        $member = Member::find($memberId);
+
+        if (!$member) return null;
+
+        $left  = Member::where('parent_id', $memberId)->where('position', 'left')->first();
+        $right = Member::where('parent_id', $memberId)->where('position', 'right')->first();
+
+        return [
+            'id'       => $member->id,
+            'user_id'  => $member->user_id,
+            'fullname' => $member->fullname,
+            'status'   => $member->status,
+            'left'     => $left  ? $this->buildTree($left->id,  $levels - 1) : null,
+            'right'    => $right ? $this->buildTree($right->id, $levels - 1) : null,
+        ];
+    }
+    private function getAllDownline(int $parentId, string $position, array $visited): \Illuminate\Support\Collection
+    {
+        if (in_array($parentId, $visited)) {
+            return collect();
+        }
+
+        $visited[] = $parentId;
+        $all       = collect();
+
+        foreach (Member::where('parent_id', $parentId)->where('position', $position)->get() as $member) {
+            $all->push($member);
+            $all = $all->merge($this->getAllDownline($member->id, 'left',  $visited));
+            $all = $all->merge($this->getAllDownline($member->id, 'right', $visited));
+        }
+
+        return $all;
+    }
+    private function getPurchaseBalance(int $memberId, string $userId): float
+    {
+        $table = 'repurchase_wallet_transactions';
+
+        if (!Schema::hasTable($table)) {
+            return 0.0;
+        }
+
+        [$idCol, $identifier] = $this->rwTableIdColumn($table, $memberId, $userId);
+
+        if (Schema::hasColumn($table, 'balance_after')) {
+            $latest = DB::table($table)->where($idCol, $identifier)->orderByDesc('id')->value('balance_after');
+
+            if ($latest !== null) {
+                return round((float) $latest, 2);
+            }
+        }
+        if (Schema::hasColumn($table, 'amount') && Schema::hasColumn($table, 'type')) {
+            $debitTypes = ['debit', 'dr', 'deduct', 'withdrawal', 'withdraw', 'purchase'];
+
+            $credits = (float) DB::table($table)->where($idCol, $identifier)->whereNotIn('type', $debitTypes)->sum('amount');
+            $debits  = (float) DB::table($table)->where($idCol, $identifier)->whereIn('type',    $debitTypes)->sum('amount');
+
+            return round($credits - $debits, 2);
+        }
+
+        return 0.0;
+    }
+    private function getTurnoverBalance(int $memberId, string $userId): float
+    {
+        if (!Schema::hasTable('wallets')) {
+            return 0.0;
+        }
+
+        $query = DB::table('wallets');
+
+        if (Schema::hasColumn('wallets', 'user_id')) {
+            $query->where(function ($q) use ($memberId, $userId) {
+                $q->where('user_id', $memberId)
+                  ->orWhere('user_id', (string) $memberId)
+                  ->orWhere('user_id', $userId);
+            });
+        } elseif (Schema::hasColumn('wallets', 'member_id')) {
+            $query->where('member_id', $memberId);
+        }
+
+        $wallet = $query->first();
+
+        if (!$wallet) {
+            return 0.0;
+        }
+
+        $totalIncome    = property_exists($wallet, 'total_income')    ? (float) $wallet->total_income    : 0.0;
+        $matchingIncome = property_exists($wallet, 'matching_income') ? (float) $wallet->matching_income : 0.0;
+        $royaltyIncome  = property_exists($wallet, 'royalty_income')  ? (float) $wallet->royalty_income  : 0.0;
+
+        return $totalIncome > 0
+            ? round($totalIncome, 2)
+            : round($matchingIncome + $royaltyIncome, 2);
+    }
+    private function getPurchaseOrders(int $memberId, string $userId, string $monthStart, string $monthEnd): int
+    {
+        $table = 'repurchase_wallet_transactions';
+
+        if (!Schema::hasTable($table)) {
+            return 0;
+        }
+
+        [$idCol, $identifier] = $this->rwTableIdColumn($table, $memberId, $userId);
+
+        $query = DB::table($table)->where($idCol, $identifier);
+
+        if (Schema::hasColumn($table, 'created_at')) {
+            $query->whereDate('created_at', '>=', $monthStart)
+                  ->whereDate('created_at', '<=', $monthEnd);
+        }
+
+        return (int) $query->count();
     }
 
-    $left = $this->getAllDownline($user->id, 'left', []);
-    $right = $this->getAllDownline($user->id, 'right', []);
+    private function getSalesData(int $memberId, string $userId, string $monthStart, string $monthEnd): array
+    {
+        if (!Schema::hasTable('branch_sales')) {
+            return ['count' => 0, 'turnover' => 0.0];
+        }
 
-    return response()->json([
-        'left' => $left,
-        'right' => $right
-    ]);
-}
+        $query = DB::table('branch_sales');
 
-private function getAllDownline($parentId, $position, $visited)
-{
-    if (in_array($parentId, $visited)) {
-        return collect(); // prevent infinite loop
+        if (Schema::hasColumn('branch_sales', 'sale_date')) {
+            $query->whereDate('sale_date', '>=', $monthStart)
+                  ->whereDate('sale_date', '<=', $monthEnd);
+        }
+
+        if (Schema::hasColumn('branch_sales', 'member_id')) {
+            $query->where('member_id', $memberId);
+        } elseif (Schema::hasColumn('branch_sales', 'user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        $turnover = Schema::hasColumn('branch_sales', 'sale_amount')
+            ? round((float) (clone $query)->sum('sale_amount'), 2)
+            : 0.0;
+
+        return ['count' => (int) $query->count(), 'turnover' => $turnover];
     }
 
-    $visited[] = $parentId;
+    private function getCommissionAmount(int $memberId, string $userId, string $monthStart, string $monthEnd, string $monthKey): float
+    {
+        $total = 0.0;
+        if (Schema::hasTable('loyalty_bonuses') && Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
+            $q = DB::table('loyalty_bonuses');
+            $this->applyMemberFilter($q, 'loyalty_bonuses', $memberId, $userId);
 
-    $members = Member::where('parent_id', $parentId)
-        ->where('position', $position)
-        ->get();
+            if (Schema::hasColumn('loyalty_bonuses', 'month_key')) {
+                $q->where('month_key', $monthKey);
+            }
 
-    $all = collect();
+            $total += (float) $q->sum('bonus_amount');
+        }
+        if (Schema::hasTable('business_monitoring_bonuses') && Schema::hasColumn('business_monitoring_bonuses', 'bonus_amount')) {
+            $q = DB::table('business_monitoring_bonuses');
+            $this->applyMemberFilter($q, 'business_monitoring_bonuses', $memberId, $userId);
 
-    foreach ($members as $member) {
-        $all->push($member);
+            if (Schema::hasColumn('business_monitoring_bonuses', 'cycle_date')) {
+                $q->whereDate('cycle_date', '>=', $monthStart)
+                  ->whereDate('cycle_date', '<=', $monthEnd);
+            }
 
-        $all = $all->merge(
-            $this->getAllDownline($member->id, 'left', $visited)
-        );
+            $total += (float) $q->sum('bonus_amount');
+        }
 
-        $all = $all->merge(
-            $this->getAllDownline($member->id, 'right', $visited)
-        );
+        return round($total, 2);
     }
+    private function rwTableIdColumn(string $table, int $memberId, string $userId): array
+    {
+        if (Schema::hasColumn($table, 'user_id')) {
+            return ['user_id', $userId];
+        }
 
-    return $all;
-}
-
-public function matchingStatus(Request $request)
-{
-    // TEMPORARY: hardcoded user for testing
-    $userId = 1; // change this if needed
-
-    $history = \App\Models\MatchingHistory::where('user_id', $userId)
-        ->orderBy('match_date', 'desc')
-        ->get();
-
-    return response()->json($history);
-}
+        return ['member_id', $memberId];
+    }
+    private function applyMemberFilter(\Illuminate\Database\Query\Builder $query, string $table, int $memberId, string $userId): void
+    {
+        if (Schema::hasColumn($table, 'member_id')) {
+            $query->where('member_id', $memberId);
+        } elseif (Schema::hasColumn($table, 'user_id')) {
+            $query->where('user_id', $userId);
+        }
+    }
 }

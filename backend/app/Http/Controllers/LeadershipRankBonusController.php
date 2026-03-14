@@ -53,9 +53,6 @@ class LeadershipRankBonusController extends Controller
         ]);
     }
 
-
-
-  
     public function calculateCycle(Request $request)
     {
         $cycleDate = $request->cycle_date;

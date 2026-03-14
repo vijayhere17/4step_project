@@ -1,52 +1,106 @@
+import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { Star } from "lucide-react";
+import { requestMemberApi } from "../utils/apiClient";
 
 export default function RankWithRewardStatus() {
-  const rewards = [
-    {
-      rank: "Rising Star",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image.png",
-    },
-    {
-      rank: "Bronze",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image 6.png",
-    },
-    {
-      rank: "Silver",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image 7.png",
-    },
-    {
-      rank: "Gold",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image 8.png",
-    },
-    {
-      rank: "Platinum",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image 9.png",
-    },
-    {
-      rank: "Diamond",
-      target: 5000,
-      achieved: 0,
-      pending: 5000,
-      image: "/rewards/image 10.png",
-    },
-  ];
+  const [summary, setSummary] = useState({
+    total_target: 0,
+    total_achieved: 0,
+    ranks_achieved: 0,
+    total_ranks: 0,
+  });
+  const [rewards, setRewards] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const memberUserId = useMemo(() => {
+    try {
+      const member = JSON.parse(localStorage.getItem("memberData") || "{}");
+      return member?.user_id || "";
+    } catch {
+      return "";
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchRankRewards = async () => {
+      if (!memberUserId) {
+        if (isMounted) {
+          setError("Member not found in local session.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        if (isMounted) {
+          setError("");
+          setIsLoading(true);
+        }
+
+        const response = await requestMemberApi("/rank-rewards", {
+          headers: {
+            Accept: "application/json",
+            "X-Auth-Member": memberUserId,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(response.data?.message || "Unable to load rank rewards.");
+        }
+
+        const responseSummary = response.data?.data?.summary || {};
+        const responseRewards = response.data?.data?.rewards || response.data?.rewards || [];
+
+        if (isMounted) {
+          setSummary({
+            total_target: Number(responseSummary.total_target) || 0,
+            total_achieved: Number(responseSummary.total_achieved) || 0,
+            ranks_achieved: Number(responseSummary.ranks_achieved) || 0,
+            total_ranks: Number(responseSummary.total_ranks) || responseRewards.length,
+          });
+          setRewards(Array.isArray(responseRewards) ? responseRewards : []);
+        }
+      } catch (fetchError) {
+        if (isMounted) {
+          setError(fetchError.message || "Unable to load rank rewards.");
+          setRewards([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchRankRewards();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [memberUserId]);
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0));
+  };
+
+  const statusClassName = (status) => {
+    const normalizedStatus = String(status || "").toLowerCase();
+
+    if (normalizedStatus === "achieved") {
+      return "bg-green-100 text-green-700";
+    }
+
+    return "bg-yellow-100 text-yellow-600";
+  };
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -61,22 +115,25 @@ export default function RankWithRewardStatus() {
             Rank with Reward Status
           </h1>
 
+          {isLoading && <p className="text-center text-gray-500 mb-4">Loading rewards...</p>}
+          {error && <p className="text-center text-red-500 mb-4">{error}</p>}
+
           <div className="bg-[#B0422E] rounded-2xl p-6 text-white shadow-md">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
               <div className="bg-white/20 rounded-xl p-6">
                 <p className="uppercase text-semibold">Total Target</p>
-                <h2 className="text-2xl font-bold mt-2">₹430,000</h2>
+                <h2 className="text-2xl font-bold mt-2">{formatCurrency(summary.total_target)}</h2>
               </div>
 
               <div className="bg-white/20 rounded-xl p-6">
                 <p className="uppercase text-semibold">Total Achieved</p>
-                <h2 className="text-2xl font-bold mt-2">₹0.00</h2>
+                <h2 className="text-2xl font-bold mt-2">{formatCurrency(summary.total_achieved)}</h2>
               </div>
 
               <div className="bg-white/20 rounded-xl p-6">
                 <p className="uppercase text-semibold">Ranks Achieved</p>
-                <h2 className="text-2xl font-bold mt-2">0 / 6</h2>
+                <h2 className="text-2xl font-bold mt-2">{summary.ranks_achieved} / {summary.total_ranks}</h2>
               </div>
 
             </div>
@@ -105,11 +162,19 @@ export default function RankWithRewardStatus() {
                 </thead>
 
                 <tbody>
+                  {!isLoading && rewards.length === 0 && (
+                    <tr>
+                      <td className="py-6 px-4 text-center text-gray-500" colSpan={8}>
+                        No reward data found.
+                      </td>
+                    </tr>
+                  )}
+
                   {rewards.map((item, index) => {
-                    const progress = 0;
+                    const progress = Number(item.progress) || 0;
 
                     return (
-                      <tr key={index} className="border-b last:border-none">
+                      <tr key={item.id || item.rank || index} className="border-b last:border-none">
 
                         <td className="py-6 px-4">
                           {String(index + 1).padStart(2, "0")}
@@ -122,10 +187,10 @@ export default function RankWithRewardStatus() {
                           {item.rank}
                         </td>
 
-                        <td className="py-6 px-4">₹{item.target}</td>
-                        <td className="py-6 px-4">₹{item.achieved}</td>
+                        <td className="py-6 px-4">{formatCurrency(item.target)}</td>
+                        <td className="py-6 px-4">{formatCurrency(item.achieved)}</td>
                         <td className="py-6 px-4 text-[#F6A71E]">
-                          ₹{item.pending}
+                          {formatCurrency(item.pending)}
                         </td>
 
                         <td className="py-6 px-4">
@@ -147,12 +212,15 @@ export default function RankWithRewardStatus() {
                             src={item.image}
                             alt={item.rank}
                             className="w-20 h-20 object-contain"
+                            onError={(event) => {
+                              event.currentTarget.src = "/rewards/image 10.png";
+                            }}
                           />
                         </td>
 
                         <td className="py-6 px-4">
-                          <span className="bg-yellow-100 text-yellow-600 px-4 py-1 rounded-full text-xs font-medium">
-                            Pending
+                          <span className={`${statusClassName(item.status)} px-4 py-1 rounded-full text-xs font-medium`}>
+                            {item.status || "Pending"}
                           </span>
                         </td>
 

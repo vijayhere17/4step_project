@@ -15,6 +15,8 @@ use App\Http\Controllers\MemberMessageController;
 use App\Http\Controllers\RepurchaseWalletStatusController;
 use App\Http\Controllers\IncomeSummaryController;
 use App\Http\Controllers\EarningBalanceController;
+use App\Http\Controllers\RankRewardController;
+use App\Http\Controllers\TravelClubBonusController;
 
 // API routes for member operations (stateless, no CSRF)
 Route::post('member/signup', [MemberController::class, 'signup']);
@@ -57,8 +59,10 @@ Route::post('bonuses/loyalty/calculate-monthly', [LoyaltyBonusController::class,
 Route::post('bonuses/loyalty/calculate-consistency', [LoyaltyBonusController::class, 'calculateConsistencyBonus']);
 Route::get('bonuses/group-builtup', [GroupBuiltupBonusController::class, 'index']);
 Route::post('bonuses/group-builtup/calculate', [GroupBuiltupBonusController::class, 'calculateCycle']);
+Route::get('bonuses/travel-club', [TravelClubBonusController::class, 'index']);
 Route::get('branches', [BranchController::class, 'index']);
 Route::get('branches/referral', [BranchController::class, 'referralBranch']);
 Route::post('messages/compose', [MemberMessageController::class, 'compose']);
 Route::get('messages/inbox', [MemberMessageController::class, 'inbox']);
 Route::get('messages/outbox', [MemberMessageController::class, 'outbox']);
+Route::get('/rank-rewards',[RankRewardController::class,'rankRewards']);
