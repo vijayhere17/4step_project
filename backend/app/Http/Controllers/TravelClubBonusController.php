@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class TravelClubBonusController extends Controller
 {
+    // Dynamic travel-club bonus view/controller for member travel incentive records.
     private const TARGETS = [
         'single_domestic' => 600000,
         'couple_domestic' => 1000000,

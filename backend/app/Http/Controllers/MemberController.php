@@ -168,10 +168,49 @@ class MemberController extends Controller
             'state'     => 'nullable|string',
             'city'      => 'nullable|string',
             'district'  => 'nullable|string',
+            'shipping_address'  => 'nullable|string',
+            'shipping_pin_code' => 'nullable|string',
+            'shipping_state'    => 'nullable|string',
+            'shipping_city'     => 'nullable|string',
+            'shipping_district' => 'nullable|string',
+            'nominee_name'      => 'nullable|string|max:255',
+            'nominee_relation'  => 'nullable|string|max:120',
+            'nominee_mobile_no' => 'nullable|string|max:20',
+            'nominee_address'   => 'nullable|string',
+            'nominee_state'     => 'nullable|string|max:120',
+            'nominee_city'      => 'nullable|string|max:120',
+            'nominee_district'  => 'nullable|string|max:120',
+            'nominee_pin_code'  => 'nullable|string|max:20',
         ]);
 
         $member = $this->findMemberByUserId($data['user_id']);
-        $member->update($data);
+
+        $updateData = $data;
+        unset($updateData['user_id']);
+
+        $shippingFields = [
+            'shipping_address',
+            'shipping_pin_code',
+            'shipping_state',
+            'shipping_city',
+            'shipping_district',
+            'nominee_name',
+            'nominee_relation',
+            'nominee_mobile_no',
+            'nominee_address',
+            'nominee_state',
+            'nominee_city',
+            'nominee_district',
+            'nominee_pin_code',
+        ];
+
+        foreach ($shippingFields as $field) {
+            if (!Schema::hasColumn('members', $field)) {
+                unset($updateData[$field]);
+            }
+        }
+
+        $member->update($updateData);
 
         return response()->json(['message' => 'Profile updated successfully', 'member' => $member]);
     }
@@ -214,10 +253,37 @@ class MemberController extends Controller
         $monthEnd   = now()->endOfMonth()->toDateString();
         $monthKey   = now()->format('Y-m');
 
+        $leftChild  = Member::where('parent_id', $memberId)->where('position', 'left')->first();
+        $rightChild = Member::where('parent_id', $memberId)->where('position', 'right')->first();
+
+        $leftTeamCount  = $leftChild ? 1 + $this->countDownline($leftChild->id) : 0;
+        $rightTeamCount = $rightChild ? 1 + $this->countDownline($rightChild->id) : 0;
+        $totalTeam      = $leftTeamCount + $rightTeamCount;
+
+        $leftActiveCount  = $leftChild ? $this->countActiveDownline($leftChild->id) : 0;
+        $rightActiveCount = $rightChild ? $this->countActiveDownline($rightChild->id) : 0;
+        $totalActiveTeam  = $leftActiveCount + $rightActiveCount;
+
         $salesData = $this->getSalesData($memberId, $userId, $monthStart, $monthEnd);
+        $leadershipRank = $this->getLeadershipRank($memberId, $userId);
 
         return response()->json([
             'data' => [
+            // New dashboard 11-card fields
+            'total_team'          => $totalTeam,
+            'total_active_team'   => $totalActiveTeam,
+            'total_manager_left'  => $leftTeamCount,
+            'total_manager_right' => $rightTeamCount,
+            'id_position_step'    => $this->resolveMemberPackageStep($member),
+            'leadership_rank'     => $leadershipRank,
+            'rank_with_reward'    => $this->getRankWithReward($memberId, $userId),
+            'repurchase_balance'  => $this->getPurchaseBalance($memberId, $userId),
+            'consistency_balance' => $this->getConsistencyBalance($memberId, $userId),
+            'earning_balance'     => $this->getEarningBalance($memberId, $userId),
+            'direct_id'           => $this->getDirectIdCount($memberId),
+            'direct_branch'       => $this->getDirectBranchCount($memberId),
+
+            // Legacy fields kept for compatibility
                 'purchase_balance'  => $this->getPurchaseBalance($memberId, $userId),
                 'turnover_balance'  => $this->getTurnoverBalance($memberId, $userId),
                 'purchase_orders'   => $this->getPurchaseOrders($memberId, $userId, $monthStart, $monthEnd),
@@ -697,6 +763,110 @@ class MemberController extends Controller
         }
 
         return round($total, 2);
+    }
+    private function countActiveDownline(int $memberId): int
+    {
+        $count = 0;
+        $children = Member::where('parent_id', $memberId)->get();
+
+        foreach ($children as $child) {
+            if ((int) $child->status === 1) {
+                $count++;
+            }
+
+            $count += $this->countActiveDownline($child->id);
+        }
+
+        return $count;
+    }
+    private function getLeadershipRank(int $memberId, string $userId): string
+    {
+        if (!Schema::hasTable('leadership_rank_bonuses')) {
+            return 'N/A';
+        }
+
+        $query = DB::table('leadership_rank_bonuses');
+
+        if (Schema::hasColumn('leadership_rank_bonuses', 'upline_member_id')) {
+            $query->where('upline_member_id', $memberId);
+        } elseif (Schema::hasColumn('leadership_rank_bonuses', 'member_id')) {
+            $query->where('member_id', $memberId);
+        } elseif (Schema::hasColumn('leadership_rank_bonuses', 'user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        if (Schema::hasColumn('leadership_rank_bonuses', 'rank_achieved_date')) {
+            $query->orderByDesc('rank_achieved_date');
+        }
+
+        $rank = $query->orderByDesc('id')->value('rank_name');
+
+        return $rank ? (string) $rank : 'N/A';
+    }
+    private function getRankWithReward(int $memberId, string $userId): string
+    {
+        $total = $this->getEarningBalance($memberId, $userId);
+
+        $tiers = [
+            ['rank' => 'Rising Star', 'target' => 5000],
+            ['rank' => 'Bronze', 'target' => 10000],
+            ['rank' => 'Silver', 'target' => 20000],
+            ['rank' => 'Gold', 'target' => 45000],
+            ['rank' => 'Platinum', 'target' => 100000],
+            ['rank' => 'Ruby', 'target' => 500000],
+            ['rank' => 'Sapphire', 'target' => 1100000],
+            ['rank' => 'Emerald', 'target' => 2500000],
+            ['rank' => 'Diamond', 'target' => 5100000],
+        ];
+
+        $achieved = 'N/A';
+
+        foreach ($tiers as $tier) {
+            if ($total >= $tier['target']) {
+                $achieved = $tier['rank'];
+            }
+        }
+
+        return $achieved;
+    }
+    private function getConsistencyBalance(int $memberId, string $userId): float
+    {
+        if (!Schema::hasTable('loyalty_bonuses') || !Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
+            return 0.0;
+        }
+
+        $query = DB::table('loyalty_bonuses');
+        $this->applyMemberFilter($query, 'loyalty_bonuses', $memberId, $userId);
+
+        if (Schema::hasColumn('loyalty_bonuses', 'type')) {
+            $query->where('type', 'consistency');
+        }
+
+        return round((float) $query->sum('bonus_amount'), 2);
+    }
+    private function getEarningBalance(int $memberId, string $userId): float
+    {
+        $turnover = $this->getTurnoverBalance($memberId, $userId);
+
+        if ($turnover > 0) {
+            return $turnover;
+        }
+
+        return round(
+            $this->getConsistencyBalance($memberId, $userId) + $this->getPurchaseBalance($memberId, $userId),
+            2
+        );
+    }
+    private function getDirectIdCount(int $memberId): int
+    {
+        return (int) Member::where('sponsor_id', $memberId)->count();
+    }
+    private function getDirectBranchCount(int $memberId): int
+    {
+        return (int) Member::where('sponsor_id', $memberId)
+            ->whereNotNull('position')
+            ->distinct('position')
+            ->count('position');
     }
     private function rwTableIdColumn(string $table, int $memberId, string $userId): array
     {

@@ -14,6 +14,7 @@ import RightLeftDownline from "./pages/RightLeftDownline";
 import MatchingStatus from "./pages/MatchingStatus";
 import RepurchaseStatus from "./pages/RepurchaseStatus";
 import ConsistencyStatus from "./pages/ConsistencyStatus";
+import MonitoringStatus from "./pages/MonitoringStatus";
 import DiwaliCelebration from "./pages/DiwaliCelebration";
 import PurchaseBalanceRequest from "./pages/PurchaseBalanceRequest";
 import PurchaseBalanceHistory from "./pages/PurchaseBalanceHistory";
@@ -62,6 +63,7 @@ export default function MemberRoutes() {
         <Route path="matching-status" element={<MatchingStatus />} />
         <Route path="repurchase-status" element={<RepurchaseStatus />} />
         <Route path="consistency-status" element={<ConsistencyStatus />} />
+        <Route path="monitoring-status" element={<MonitoringStatus />} />
         <Route path="diwali-celebration" element={<DiwaliCelebration />} />
         <Route path="royalty-status" element={<RoyaltyStatus />} />
         <Route path="travelclub-status" element={<TravelclubStatus />} />

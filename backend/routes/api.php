@@ -18,6 +18,7 @@ use App\Http\Controllers\EarningBalanceController;
 use App\Http\Controllers\RankRewardController;
 use App\Http\Controllers\TravelClubBonusController;
 
+
 // API routes for member operations (stateless, no CSRF)
 Route::post('member/signup', [MemberController::class, 'signup']);
 Route::post('member/signin', [MemberController::class, 'signin']);
@@ -27,7 +28,7 @@ Route::get('/member/dashboard', [MemberController::class, 'dashboard']);
 Route::get('member/dashboard-stats', [MemberController::class, 'dashboardStats']);
 Route::post('member/activate-package', [MemberController::class, 'activatePackage']);
 Route::get('member/consistency-status', [RepurchaseWalletStatusController::class, 'index']);
-Route::get('member/repurchase-status', [RepurchaseWalletStatusController::class, 'index']);
+Route::get('member/repurchase-status', [LoyaltyBonusController::class, 'repurchaseStatus']);
 Route::get('/member/tree', [MemberController::class, 'tree']);
 Route::get('member/profile', [MemberController::class, 'profile']);
 Route::put('member/profile', [MemberController::class, 'updateProfile']);
@@ -42,10 +43,13 @@ Route::post('member/check-sponsor', [MemberController::class, 'checkSponsor']);
 Route::post('member/internal-add', [MemberController::class, 'internalAdd']);
 Route::get('/downline', [MemberController::class, 'getDownline']);
 Route::get('/matching-status', [MemberController::class, 'matchingStatus']);
+Route::get('member/diwali-status', [DiwaliBonusController::class, 'status']);
 Route::get('bonuses/diwali', [DiwaliBonusController::class, 'index']);
 Route::post('bonuses/diwali/calculate', [DiwaliBonusController::class, 'calculateYearly']);
+Route::get('member/royalty-status', [RoyaltyClubBonusController::class, 'status']);
 Route::get('bonuses/royalty-club', [RoyaltyClubBonusController::class, 'index']);
 Route::post('bonuses/royalty-club/calculate', [RoyaltyClubBonusController::class, 'calculateMonthly']);
+Route::get('member/business-monitoring-status', [BusinessMonitoringBonusController::class, 'status']);
 Route::get('bonuses/business-monitoring', [BusinessMonitoringBonusController::class, 'index']);
 Route::post('bonuses/business-monitoring/calculate', [BusinessMonitoringBonusController::class, 'calculateCycle']);
 Route::get('bonuses/leadership-rank', [LeadershipRankBonusController::class, 'index']);
@@ -66,3 +70,5 @@ Route::post('messages/compose', [MemberMessageController::class, 'compose']);
 Route::get('messages/inbox', [MemberMessageController::class, 'inbox']);
 Route::get('messages/outbox', [MemberMessageController::class, 'outbox']);
 Route::get('/rank-rewards',[RankRewardController::class,'rankRewards']);
+// Route::get('/member/consistency-status', [ConsistencyStatusController::class, 'index']);
+// Route::post('/member/consistency-status/update-monthly-purchase', [ConsistencyStatusController::class, 'updateMonthlyPurchase']);

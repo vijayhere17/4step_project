@@ -110,7 +110,7 @@ const RepurchaseBonus = () => {
             <div className="p-8 bg-gray-100 min-h-screen">
 
             <h1 className="text-3xl font-bold text-[#B0422E] text-center mb-8">
-             Repurchase Bonus
+             Loyalty Repurchase Bonus
             </h1>
             {isLoading && <p className="text-center text-gray-500 mb-4">Loading bonuses...</p>}
             {error && <p className="text-center text-red-500 mb-4">{error}</p>}
@@ -124,8 +124,9 @@ const RepurchaseBonus = () => {
                                     <th className="p-3 rounded-l-xl">Sr No</th>
                                     <th className="p-3">Date</th>
                                     <th className="p-3">Transaction ID</th>
-                                    <th className="p-3">Invoice No</th>
+                                    <th className="p-3">Month</th>
                                     <th className="p-3">Repurchase Amount</th>
+                                    <th className="p-3">Requirement</th>
                                     <th className="p-3">%</th>
                                     <th className="p-3">Earned</th>
                                     <th className="p-3 rounded-r-xl">Status</th>
@@ -135,17 +136,18 @@ const RepurchaseBonus = () => {
                                     <tbody>
                                     {!isLoading && rows.length === 0 && (
                                       <tr className="border-b">
-                                        <td className="p-4" colSpan={8}>No Repurchase bonus data found</td>
+                                        <td className="p-4" colSpan={9}>No Repurchase bonus data found</td>
                                       </tr>
                                     )}
 
                                     {rows.map((row, index) => (
                                       <tr className="border-b" key={row.id ?? `${row.transaction_id}-${index}`}>
                                         <td className="p-4">{String(index + 1).padStart(2, "0")}</td>
-                                        <td>{formatDate(row.date)}</td>
+                                        <td>{formatDate(row.date || `${row.month}-01`)}</td>
                                         <td>{row.transaction_id || "-"}</td>
-                                        <td>{row.invoice_no || "-"}</td>
+                                        <td>{row.month || "-"}</td>
                                         <td>{formatCurrency(row.repurchase_amount)}</td>
+                                        <td>{row.requirement_met ? "INR 500+ met" : "INR 500+ pending"}</td>
                                         <td>{Number(row.percentage || 0)}%</td>
                                         <td>{formatCurrency(row.earned)}</td>
                                         <td className={statusClass(row.status)}>{row.status || "Pending"}</td>

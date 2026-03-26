@@ -88,9 +88,9 @@ export default function ReferralBranch() {
       render: (row) => row.user_id || "--",
     },
     {
-      key: "shopee_type",
-      header: "Shopee Type",
-      render: (row) => row.shopee_type || "--",
+      key: "branch_type",
+      header: "Branch Type",
+      render: (row) => row.branch_type || row.shopee_type || "--",
     },
     {
       key: "date",

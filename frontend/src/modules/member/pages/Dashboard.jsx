@@ -1,21 +1,36 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import { requestMemberApi } from "../utils/apiClient";
 
-import { FaLink } from "react-icons/fa6";
+import { FaLink, FaIndianRupeeSign, FaUsers, FaUserCheck, FaCodeBranch } from "react-icons/fa6";
 import { FiCopy } from "react-icons/fi";
 import { LuWallet } from "react-icons/lu";
-import { FaIndianRupeeSign } from "react-icons/fa6";
 import { BsCart } from "react-icons/bs";
 import { CiMedal } from "react-icons/ci";
 import { HiOutlineDocumentText } from "react-icons/hi";
 import { GoArrowUpRight } from "react-icons/go";
-
-import { requestMemberApi } from "../utils/apiClient";
+import { MdOutlineManageAccounts } from "react-icons/md";
+import { GiAchievement } from "react-icons/gi";
 
 const ACTIVATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-function readStoredMemberData() {
+const DEFAULT_STATS = {
+  total_team: 0,
+  total_active_team: 0,
+  total_manager_left: 0,
+  total_manager_right: 0,
+  id_position_step: 0,
+  leadership_rank: "N/A",
+  rank_with_reward: "N/A",
+  repurchase_balance: 0,
+  consistency_balance: 0,
+  earning_balance: 0,
+  direct_id: 0,
+  direct_branch: 0,
+};
+
+function getStoredMemberData() {
   try {
     return JSON.parse(localStorage.getItem("memberData") || "{}");
   } catch {
@@ -23,21 +38,25 @@ function readStoredMemberData() {
   }
 }
 
-function resolveStepFromPackageId(id) {
-  const match = String(id || "").match(/step[-_]?(\d+)/i);
+function saveMemberData(data) {
+  localStorage.setItem("memberData", JSON.stringify(data));
+}
+
+function getStepFromPackageId(packageId) {
+  const match = String(packageId || "").match(/step[-_]?(\d+)/i);
   return match ? Number(match[1]) : 0;
 }
 
 function getMemberStep(member) {
-  const step =
-    member?.selected_package_step ??
-    member?.package_step ??
-    member?.step_level;
-
-  return step ? Number(step) : resolveStepFromPackageId(member?.selected_package_id);
+  return Number(
+    member?.selected_package_step ||
+      member?.package_step ||
+      member?.step_level ||
+      getStepFromPackageId(member?.selected_package_id)
+  );
 }
 
-function isMemberActivated(member) {
+function isActivated(member) {
   const status = String(member?.status || "").toLowerCase();
   return ["1", "true", "active", "activated", "approved"].includes(status);
 }
@@ -45,16 +64,16 @@ function isMemberActivated(member) {
 function formatCountdown(ms) {
   if (ms <= 0) return "Expired";
 
-  const s = Math.floor(ms / 1000);
-  const d = Math.floor(s / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
 
-  return `${String(d).padStart(2, "0")}d ${String(h).padStart(
+  return `${String(days).padStart(2, "0")}d ${String(hours).padStart(
     2,
     "0"
-  )}h ${String(m).padStart(2, "0")}m ${String(sec).padStart(2, "0")}s`;
+  )}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 function formatCurrency(value) {
@@ -64,13 +83,12 @@ function formatCurrency(value) {
   }).format(Number(value || 0))}`;
 }
 
-
-function Card({ title, amount, note, color, icon }) {
+function StatCard({ title, amount, note, icon, color }) {
   return (
     <div className={`p-6 rounded-xl text-white shadow ${color}`}>
       <div className="flex justify-between items-start">
-        <div className="bg-white/20 w-14 h-14 rounded-xl flex items-center justify-center">
-          <span className="text-white text-2xl">{icon}</span>
+        <div className="bg-white/20 w-14 h-14 rounded-xl flex items-center justify-center text-2xl">
+          {icon}
         </div>
       </div>
 
@@ -81,57 +99,71 @@ function Card({ title, amount, note, color, icon }) {
   );
 }
 
+function ReferralCard({ title, link, onCopy }) {
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-start gap-3">
+      <div className="flex gap-2 min-w-0">
+        <FaLink className="text-blue-500 mt-1 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-gray-500 text-sm">{title}</p>
+          <p className="text-sm text-gray-700 truncate">{link}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onCopy}
+        className="bg-gray-100 hover:bg-gray-200 p-2 rounded-md shrink-0"
+      >
+        <FiCopy />
+      </button>
+    </div>
+  );
+}
 
 export default function Dashboard() {
-  const [memberData, setMemberData] = useState(readStoredMemberData());
+  const [memberData, setMemberData] = useState(getStoredMemberData());
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [countdown, setCountdown] = useState("");
 
-  const memberUserId = memberData.user_id || "";
-  const welcomeName = memberData.fullname || memberUserId || "Member";
+  const memberUserId = memberData?.user_id || "";
+  const welcomeName = memberData?.fullname || memberUserId || "Member";
   const customerId = memberUserId ? `MLM-${memberUserId}` : "MLM-00000";
 
-  const memberStep = getMemberStep(memberData);
-  const isActive = isMemberActivated(memberData) && memberStep > 0;
+  const memberStep = useMemo(() => getMemberStep(memberData), [memberData]);
+  const activeStatus = useMemo(
+    () => isActivated(memberData) && memberStep > 0,
+    [memberData, memberStep]
+  );
 
   const activationKey = `memberActivationDeadline30d:${memberUserId}`;
 
-  const getDeadline = () => {
-    const stored = Number(localStorage.getItem(activationKey));
+  function getActivationDeadline() {
+    const storedDeadline = Number(localStorage.getItem(activationKey));
     const now = Date.now();
 
-    if (stored && stored > now) return stored;
+    if (storedDeadline && storedDeadline > now) {
+      return storedDeadline;
+    }
 
-    const deadline = now + ACTIVATION_WINDOW_MS;
-    localStorage.setItem(activationKey, deadline);
-    return deadline;
-  };
-
-  const [countdown, setCountdown] = useState(
-    isActive ? "Active" : formatCountdown(getDeadline() - Date.now())
-  );
-
-  const [stats, setStats] = useState({
-    purchase_balance: 0,
-    turnover_balance: 0,
-    purchase_orders: 0,
-    sales_orders: 0,
-    sales_turnover: 0,
-    commission_amount: 0,
-  });
+    const newDeadline = now + ACTIVATION_WINDOW_MS;
+    localStorage.setItem(activationKey, newDeadline);
+    return newDeadline;
+  }
 
   useEffect(() => {
     if (!memberUserId) return;
 
-    const fetchDashboard = async () => {
+    const fetchDashboardData = async () => {
       try {
         const res = await requestMemberApi("/member/dashboard", {
           headers: { "X-Auth-Member": memberUserId },
         });
 
-        if (!res.ok) return;
+        if (!res?.ok) return;
 
-        const data = res.data;
+        const data = res.data || {};
 
-        const updated = {
+        const updatedMember = {
           ...memberData,
           selected_package_id: data.selected_package_id,
           selected_package_step: data.selected_package_step,
@@ -140,30 +172,35 @@ export default function Dashboard() {
           status: data.status,
         };
 
-        setMemberData(updated);
-        localStorage.setItem("memberData", JSON.stringify(updated));
-      } catch {}
+        setMemberData(updatedMember);
+        saveMemberData(updatedMember);
+      } catch (error) {
+        console.error("Dashboard member data fetch error:", error);
+      }
     };
 
-    fetchDashboard();
+    fetchDashboardData();
   }, [memberUserId]);
 
-
   useEffect(() => {
-    if (isActive) {
+    if (!memberUserId) return;
+
+    if (activeStatus) {
       setCountdown("Active");
       return;
     }
 
-    const deadline = getDeadline();
+    const deadline = getActivationDeadline();
 
-    const interval = setInterval(() => {
+    const updateCountdown = () => {
       setCountdown(formatCountdown(deadline - Date.now()));
-    }, 1000);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive]);
-
+  }, [memberUserId, activeStatus]);
 
   useEffect(() => {
     if (!memberUserId) return;
@@ -174,36 +211,130 @@ export default function Dashboard() {
           headers: { "X-Auth-Member": memberUserId },
         });
 
-        if (!res.ok) return;
+        if (!res?.ok) return;
 
-        const d = res.data?.data || {};
+        const data = res?.data?.data || {};
 
         setStats({
-          purchase_balance: Number(d.purchase_balance) || 0,
-          turnover_balance: Number(d.turnover_balance) || 0,
-          purchase_orders: Number(d.purchase_orders) || 0,
-          sales_orders: Number(d.sales_orders) || 0,
-          sales_turnover: Number(d.sales_turnover) || 0,
-          commission_amount: Number(d.commission_amount) || 0,
+          total_team: Number(data.total_team) || 0,
+          total_active_team: Number(data.total_active_team) || 0,
+          total_manager_left: Number(data.total_manager_left) || 0,
+          total_manager_right: Number(data.total_manager_right) || 0,
+          id_position_step: Number(data.id_position_step) || 0,
+          leadership_rank: data.leadership_rank || "N/A",
+          rank_with_reward: data.rank_with_reward || "N/A",
+          repurchase_balance: Number(data.repurchase_balance) || 0,
+          consistency_balance: Number(data.consistency_balance) || 0,
+          earning_balance: Number(data.earning_balance) || 0,
+          direct_id: Number(data.direct_id) || 0,
+          direct_branch: Number(data.direct_branch) || 0,
         });
-      } catch {}
+      } catch (error) {
+        console.error("Dashboard stats fetch error:", error);
+      }
     };
 
     loadStats();
-    const timer = setInterval(loadStats, 30000);
+    const interval = setInterval(loadStats, 30000);
 
-    return () => clearInterval(timer);
+    return () => clearInterval(interval);
   }, [memberUserId]);
 
-  const baseSignup = `${window.location.origin}/member/signup`;
+  const signupBaseUrl = `${window.location.origin}/member/signup`;
+  const leftReferralLink = `${signupBaseUrl}?sponsorId=${memberUserId}&position=left`;
+  const rightReferralLink = `${signupBaseUrl}?sponsorId=${memberUserId}&position=right`;
 
-  const leftLink = `${baseSignup}?sponsorId=${memberUserId}&position=left`;
-  const rightLink = `${baseSignup}?sponsorId=${memberUserId}&position=right`;
-
-  const copyLink = (link) => {
-    navigator.clipboard.writeText(link);
-    alert("Link copied!");
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Link copied!");
+    } catch (error) {
+      console.error("Copy failed:", error);
+    }
   };
+
+  const topCards = [
+    {
+      title: "Total Team",
+      amount: stats.total_team,
+      note: "Total members in your network",
+      icon: <FaUsers />,
+      color: "bg-[linear-gradient(90deg,#3483D2,#2262A1)]",
+    },
+    {
+      title: "Total Register Active Team",
+      amount: stats.total_active_team,
+      note: "Active members in your team",
+      icon: <FaUserCheck />,
+      color: "bg-[linear-gradient(90deg,#45B0D7,#268CB1)]",
+    },
+    {
+      title: "Total Manager (Left / Right)",
+      amount: `${stats.total_manager_left} / ${stats.total_manager_right}`,
+      note: "Managers by side",
+      icon: <MdOutlineManageAccounts />,
+      color: "bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]",
+    },
+    {
+      title: "ID Position Step",
+      amount: stats.id_position_step,
+      note: "Current step",
+      icon: <HiOutlineDocumentText />,
+      color: "bg-[linear-gradient(90deg,#B74331,#8A3225)]",
+    },
+    {
+      title: "Leadership Rank",
+      amount: stats.leadership_rank,
+      note: "Current rank",
+      icon: <GiAchievement />,
+      color: "bg-[linear-gradient(90deg,#2A9EC9,#266DB2)]",
+    },
+    {
+      title: "Rank With Reward",
+      amount: stats.rank_with_reward,
+      note: "Reward linked to rank",
+      icon: <CiMedal />,
+      color: "bg-[linear-gradient(90deg,#9B4032,#2864A3)]",
+    },
+    {
+      title: "Repurchase Balance",
+      amount: formatCurrency(stats.repurchase_balance),
+      note: "Current repurchase wallet",
+      icon: <LuWallet />,
+      color: "bg-[linear-gradient(90deg,#3483D2,#2262A1)]",
+    },
+    {
+      title: "Consistency Balance",
+      amount: formatCurrency(stats.consistency_balance),
+      note: "Current consistency wallet",
+      icon: <GoArrowUpRight />,
+      color: "bg-[linear-gradient(90deg,#45B0D7,#268CB1)]",
+    },
+    {
+      title: "Earning Balance",
+      amount: formatCurrency(stats.earning_balance),
+      note: "Total earnings",
+      icon: <FaIndianRupeeSign />,
+      color: "bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]",
+    },
+  ];
+
+  const bottomCards = [
+    {
+      title: "Direct ID",
+      amount: stats.direct_id,
+      note: "Directly sponsored IDs",
+      icon: <BsCart />,
+      color: "bg-[linear-gradient(90deg,#B74331,#8A3225)]",
+    },
+    {
+      title: "Direct Branch",
+      amount: stats.direct_branch,
+      note: "Direct branch count",
+      icon: <FaCodeBranch />,
+      color: "bg-[linear-gradient(90deg,#2A9EC9,#266DB2)]",
+    },
+  ];
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -213,110 +344,43 @@ export default function Dashboard() {
         <Navbar />
 
         <div className="p-6">
-
-          {/* Welcome */}
           <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg shadow">
             Welcome back, {welcomeName} ({customerId})
           </div>
 
-          {/* Activation */}
-          <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg shadow mt-5 flex justify-between">
+          <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg shadow mt-5 flex justify-between flex-wrap gap-2">
             <span>
-              {isActive
+              {activeStatus
                 ? `ID Active to ${memberStep} Step`
                 : "ID Must Be Activated Within 30 Days"}
             </span>
             <span className="font-semibold">{countdown}</span>
           </div>
 
-          {/* Referral Links */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-            <div className="bg-white p-4 rounded-xl shadow-sm flex justify-between">
-              <div className="flex gap-2">
-                <FaLink className="text-blue-500" />
-                <div>
-                  <p className="text-gray-500 text-sm">Left Referral</p>
-                  <p className="text-sm text-gray-700 truncate">{leftLink}</p>
-                </div>
-              </div>
+            <ReferralCard
+              title="Left Referral"
+              link={leftReferralLink}
+              onCopy={() => copyToClipboard(leftReferralLink)}
+            />
 
-              <button
-                onClick={() => copyLink(leftLink)}
-                className="bg-gray-100 hover:bg-gray-200 p-2 rounded-md"
-              >
-                <FiCopy />
-              </button>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm flex justify-between">
-              <div className="flex gap-2">
-                <FaLink className="text-blue-500" />
-                <div>
-                  <p className="text-gray-500 text-sm">Right Referral</p>
-                  <p className="text-sm text-gray-700 truncate">{rightLink}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => copyLink(rightLink)}
-                className="bg-gray-100 hover:bg-gray-200 p-2 rounded-md"
-              >
-                <FiCopy />
-              </button>
-            </div>
+            <ReferralCard
+              title="Right Referral"
+              link={rightReferralLink}
+              onCopy={() => copyToClipboard(rightReferralLink)}
+            />
           </div>
 
-          {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+            {topCards.map((card) => (
+              <StatCard key={card.title} {...card} />
+            ))}
+          </div>
 
-            <Card
-              title="Purchase Balance"
-              amount={formatCurrency(stats.purchase_balance)}
-              note="Updated vs last month"
-              icon={<LuWallet />}
-              color="bg-[linear-gradient(90deg,#3483D2,#2262A1)]"
-            />
-
-            <Card
-              title="Turnover Balance"
-              amount={formatCurrency(stats.turnover_balance)}
-              note="Growth vs last month"
-              icon={<GoArrowUpRight />}
-              color="bg-[linear-gradient(90deg,#45B0D7,#268CB1)]"
-            />
-
-            <Card
-              title="Purchase Orders"
-              amount={stats.purchase_orders}
-              note="Orders this month"
-              icon={<BsCart />}
-              color="bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]"
-            />
-
-            <Card
-              title="No. of Sales Orders"
-              amount={stats.sales_orders}
-              note="Sales this month"
-              icon={<HiOutlineDocumentText />}
-              color="bg-[linear-gradient(90deg,#B74331,#8A3225)]"
-            />
-
-            <Card
-              title="Sales Turnover Amount"
-              amount={formatCurrency(stats.sales_turnover)}
-              note="Revenue this month"
-              icon={<FaIndianRupeeSign />}
-              color="bg-[linear-gradient(90deg,#2A9EC9,#266DB2)]"
-            />
-
-            <Card
-              title="Commission Amount"
-              amount={formatCurrency(stats.commission_amount)}
-              note="Earned this month"
-              icon={<CiMedal />}
-              color="bg-[linear-gradient(90deg,#9B4032,#2864A3)]"
-            />
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+            {bottomCards.map((card) => (
+              <StatCard key={card.title} {...card} />
+            ))}
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\Member;
 use Carbon\Carbon;
 
@@ -52,7 +53,7 @@ class BranchController extends Controller
     
     public function referralBranch(Request $request)
     {
-        $memberUserId = $request->header('X-Auth-Member');
+        $memberUserId = $request->header('X-Auth-Member') ?: $request->query('user_id');
 
         if (!$memberUserId) {
             return response()->json([
@@ -68,11 +69,30 @@ class BranchController extends Controller
             ], 404);
         }
 
-        $branches = DB::table('branches')
-            ->where('user_id', $member->user_id)
-            ->orderBy('id', 'desc')
-            ->limit(200)
+        $referrals = Member::where('sponsor_id', $member->id)
+            ->select(['id', 'user_id'])
             ->get();
+
+        $userIds = collect([$member->user_id, (string) $member->id, $member->id])
+            ->merge($referrals->pluck('user_id'))
+            ->merge($referrals->pluck('id'))
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->unique()
+            ->values();
+
+        $branchesQuery = DB::table('branches')->orderBy('id', 'desc');
+
+        if (Schema::hasColumn('branches', 'user_id')) {
+            $branchesQuery->whereIn('user_id', $userIds->all());
+        } elseif (Schema::hasColumn('branches', 'member_id')) {
+            $branchesQuery->whereIn('member_id', $userIds->all());
+        } else {
+            return response()->json([
+                "message" => "Branch mapping columns not found"
+            ], 500);
+        }
+
+        $branches = $branchesQuery->limit(200)->get();
 
         $data = [];
 
@@ -82,7 +102,8 @@ class BranchController extends Controller
                 "id" => $row->id,
                 "user_id" => $row->user_id ?? '--',
                 "shopee_name" => $row->shopee_name ?? '--',
-                "shopee_type" => $row->shopee_type ?? '--',
+                "branch_type" => $row->branch_type ?? $row->shopee_type ?? '--',
+                "shopee_type" => $row->shopee_type ?? $row->branch_type ?? '--',
                 "date" => $this->formatDate($row->created_at ?? null),
                 "contact_person" => $row->contact_person ?? '--',
                 "state" => $row->state ?? '--',

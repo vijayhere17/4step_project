@@ -71,17 +71,6 @@ const RoyaltyClubBonus = () => {
     };
   }, [memberUserId]);
 
-  const formatDate = (dateValue) => {
-    if (!dateValue) return "-";
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return "-";
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -111,11 +100,11 @@ const RoyaltyClubBonus = () => {
                                     <thead>
                                     <tr className="bg-[#B0422E] text-white">
                                     <th className="p-3 rounded-l-xl">Sr No</th>
-                                    <th className="p-3">Date</th>
-                                    <th className="p-3">Transaction ID</th>
-                                    <th className="p-3">Royalty Level</th>
+                                    <th className="p-3">Month</th>
+                                    <th className="p-3">Company Turnover</th>
+                                    <th className="p-3">Pool%</th>
                                     <th className="p-3">Royalty Pool</th>
-                                    <th className="p-3">Share%</th>
+                                    <th className="p-3">Eligible Members</th>
                                     <th className="p-3">Earned</th>
                                     <th className="p-3 rounded-r-xl">Status</th>
                                     </tr>
@@ -131,13 +120,13 @@ const RoyaltyClubBonus = () => {
                                     {rows.map((row, index) => (
                                       <tr className="border-b" key={row.id ?? `${row.transaction_id}-${index}`}>
                                         <td className="p-4">{String(index + 1).padStart(2, "0")}</td>
-                                        <td>{formatDate(row.date)}</td>
-                                        <td>{row.transaction_id || "-"}</td>
-                                        <td>{row.royalty_level || "-"}</td>
+                                        <td>{row.month || "-"}</td>
+                                        <td>{formatCurrency(row.monthly_turnover)}</td>
+                                        <td>{Number(row.pool_percentage || 0)}%</td>
                                         <td>{formatCurrency(row.royalty_pool)}</td>
-                                        <td>{Number(row.share_percentage || 0)}%</td>
+                                        <td>{row.eligible_users_count ?? 0}</td>
                                         <td>{formatCurrency(row.earned)}</td>
-                                        <td className={row.status === "paid" ? "text-blue-600 font-semibold" : "text-green-600 font-semibold"}>
+                                        <td className={row.status === "paid" ? "text-green-600 font-semibold" : "text-amber-600 font-semibold"}>
                                           {row.status === "paid" ? "Paid" : "Pending"}
                                         </td>
                                       </tr>

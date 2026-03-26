@@ -10,6 +10,26 @@ use Carbon\Carbon;
 
 class BranchTurnoverBonusController extends Controller
 {
+    // Dynamic monthly branch bonus: percentage by branch, calculated from monthly sales/turnover.
+
+    public function runMonth(string $month): array
+    {
+        $request = Request::create('/api/bonuses/branch-turnover/calculate', 'POST', [
+            'month' => $month,
+        ]);
+
+        $response = $this->calculateMonthly($request);
+        $payload = $response->getData(true);
+        $data = $payload['data'] ?? [];
+
+        return [
+            'month' => $data['month'] ?? $month,
+            'processed_branches' => (int) ($data['branches_processed'] ?? 0),
+            'inserted_rows' => (int) ($data['rows_inserted'] ?? 0),
+            'total_turnover' => (float) ($data['total_turnover'] ?? 0),
+            'total_bonus_amount' => (float) ($data['total_bonus'] ?? 0),
+        ];
+    }
 
     
     public function index(Request $request)

@@ -5,12 +5,16 @@ import { useEffect, useMemo, useState } from "react";
 import { requestMemberApi } from "../utils/apiClient";
 
 const EMPTY_DATA = {
-  current_balance: 0,
-  total_credit: 0,
-  total_debit: 0,
-  total_earning: 0,
-  credit_percentage: 3,
-  transactions: [],
+  month: "",
+  minimum_purchase_required: 500,
+  monthly_purchase_amount: 0,
+  eligible: false,
+  cashback_eligible: false,
+  loyalty_bonus_eligible: false,
+  royalty_eligible: false,
+  bonus_percentage: 10,
+  estimated_loyalty_bonus: 0,
+  purchases: [],
 };
 
 const toNumber = (value) => {
@@ -39,61 +43,18 @@ const formatDate = (dateValue) => {
   return `${day}-${month}-${year}`;
 };
 
-const normalizeStatusPayload = (payload) => {
-  const rawTransactions = Array.isArray(payload?.transactions)
-    ? payload.transactions
-    : [];
-
-  const normalizedTransactions = rawTransactions.map((row, index) => {
-    return {
-      id: row?.id ?? index,
-      date: row?.date || null,
-      description: row?.description || "-",
-      credit_amount: toNumber(row?.credit_amount),
-      debit_amount: toNumber(row?.debit_amount),
-      balance_after:
-        row?.balance_after === null || row?.balance_after === undefined
-          ? null
-          : toNumber(row?.balance_after),
-    };
-  });
-
-  const computedCredit = normalizedTransactions.reduce(
-    (sum, row) => sum + row.credit_amount,
-    0,
-  );
-  const computedDebit = normalizedTransactions.reduce(
-    (sum, row) => sum + row.debit_amount,
-    0,
-  );
-
-  const latestBalanceWithValue = normalizedTransactions.find(
-    (row) => row.balance_after !== null,
-  );
-
-  return {
-    current_balance:
-      payload?.current_balance !== undefined && payload?.current_balance !== null
-        ? toNumber(payload.current_balance)
-        : latestBalanceWithValue
-          ? latestBalanceWithValue.balance_after
-          : computedCredit - computedDebit,
-    total_credit:
-      payload?.total_credit !== undefined && payload?.total_credit !== null
-        ? toNumber(payload.total_credit)
-        : computedCredit,
-    total_debit:
-      payload?.total_debit !== undefined && payload?.total_debit !== null
-        ? toNumber(payload.total_debit)
-        : computedDebit,
-    total_earning: toNumber(payload?.total_earning),
-    credit_percentage:
-      payload?.credit_percentage !== undefined && payload?.credit_percentage !== null
-        ? toNumber(payload.credit_percentage)
-        : 3,
-    transactions: normalizedTransactions,
-  };
-};
+const normalizeStatusPayload = (payload) => ({
+  month: payload?.month || "",
+  minimum_purchase_required: toNumber(payload?.minimum_purchase_required || 500),
+  monthly_purchase_amount: toNumber(payload?.monthly_purchase_amount || 0),
+  eligible: Boolean(payload?.eligible),
+  cashback_eligible: Boolean(payload?.cashback_eligible),
+  loyalty_bonus_eligible: Boolean(payload?.loyalty_bonus_eligible),
+  royalty_eligible: Boolean(payload?.royalty_eligible),
+  bonus_percentage: toNumber(payload?.bonus_percentage || 10),
+  estimated_loyalty_bonus: toNumber(payload?.estimated_loyalty_bonus || 0),
+  purchases: Array.isArray(payload?.purchases) ? payload.purchases : [],
+});
 
 export default function RepurchaseStatus() {
   const [statusData, setStatusData] = useState(EMPTY_DATA);
@@ -127,7 +88,7 @@ export default function RepurchaseStatus() {
           setError("");
         }
 
-        const response = await requestMemberApi("/member/repurchase-status?status_type=repurchase&limit=200", {
+        const response = await requestMemberApi("/member/repurchase-status", {
           method: "GET",
           headers: {
             Accept: "application/json",
@@ -187,28 +148,42 @@ export default function RepurchaseStatus() {
               </div>
               <div>
                 <p className="uppercase text-semibold tracking-wide">
-                  Repurchase Balance
+                  Monthly Purchase
                 </p>
-                <h2 className="text-3xl font-bold">{formatCurrency(statusData.current_balance)}</h2>
+                <h2 className="text-3xl font-bold">{formatCurrency(statusData.monthly_purchase_amount)}</h2>
                 <p className="text-sm text-white/80 mt-1">
-                  {statusData.credit_percentage}% of total earning credited
+                  Required: {formatCurrency(statusData.minimum_purchase_required)}+
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
               <div className="bg-[#CF9D94A1] rounded-xl p-6">
-                <p className="uppercase text-semibold text-[#FFFFFFAD]">Total Credit</p>
-                <h3 className="text-2xl font-semibold mt-2">{formatCurrency(statusData.total_credit)}</h3>
-                <p className="text-sm text-white/80 mt-2">
-                  Total Earning: {formatCurrency(statusData.total_earning)}
-                </p>
+                <p className="uppercase text-semibold text-[#FFFFFFAD]">Eligibility</p>
+                <h3 className="text-2xl font-semibold mt-2">{statusData.eligible ? "Eligible" : "Not Eligible"}</h3>
               </div>
 
               <div className="bg-[#CF9D94A1] rounded-xl p-6">
-                <p className="uppercase text-semibold text-[#FFFFFFAD]">Total Debit</p>
-                <h3 className="text-2xl font-semibold mt-2">{formatCurrency(statusData.total_debit)}</h3>
+                <p className="uppercase text-semibold text-[#FFFFFFAD]">Cashback</p>
+                <h3 className="text-2xl font-semibold mt-2">{statusData.cashback_eligible ? "Yes" : "No"}</h3>
               </div>
+
+              <div className="bg-[#CF9D94A1] rounded-xl p-6">
+                <p className="uppercase text-semibold text-[#FFFFFFAD]">Loyalty Bonus</p>
+                <h3 className="text-2xl font-semibold mt-2">{statusData.loyalty_bonus_eligible ? "Yes" : "No"}</h3>
+              </div>
+
+              <div className="bg-[#CF9D94A1] rounded-xl p-6">
+                <p className="uppercase text-semibold text-[#FFFFFFAD]">Royalty Eligibility</p>
+                <h3 className="text-2xl font-semibold mt-2">{statusData.royalty_eligible ? "Yes" : "No"}</h3>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl bg-[#CF9D94A1] p-6">
+              <p className="uppercase text-semibold text-[#FFFFFFAD]">Estimated Loyalty Repurchase Bonus</p>
+              <h3 className="text-2xl font-semibold mt-2">
+                {formatCurrency(statusData.estimated_loyalty_bonus)} ({statusData.bonus_percentage}%)
+              </h3>
             </div>
 
           </div>
@@ -221,40 +196,34 @@ export default function RepurchaseStatus() {
                     Sr No
                   </th>
                   <th className="py-3 px-4 text-left">Date</th>
-                  <th className="py-3 px-4 text-left">Detail</th>
-                  <th className="py-3 px-4 text-left">
-                    Credit Amount
-                  </th>
-                  <th className="py-3 px-4 text-left">
-                    Debit Amount
-                  </th>
+                  <th className="py-3 px-4 text-left">Invoice No</th>
+                  <th className="py-3 px-4 text-left">Purchase Amount</th>
+                  <th className="py-3 px-4 text-left">Requirement</th>
                   <th className="py-3 px-4 text-left rounded-r-xl">
-                    Balance
+                    Status
                   </th>
                 </tr>
               </thead>
 
               <tbody>
-                {!isLoading && statusData.transactions.length === 0 && (
+                {!isLoading && statusData.purchases.length === 0 && (
                   <tr className="border-b">
-                    <td className="py-4 px-4" colSpan={6}>No repurchase transactions found</td>
+                    <td className="py-4 px-4" colSpan={6}>No monthly purchases found</td>
                   </tr>
                 )}
 
-                {statusData.transactions.map((row, index) => (
+                {statusData.purchases.map((row, index) => (
                   <tr className="border-b" key={row.id ?? index}>
                     <td className="py-4 px-4">{String(index + 1).padStart(2, "0")}</td>
-                    <td className="py-4 px-4">{formatDate(row.date)}</td>
-                    <td className="py-4 px-4">{row.description || "-"}</td>
+                    <td className="py-4 px-4">{formatDate(row.purchase_date)}</td>
+                    <td className="py-4 px-4">{row.invoice_no || "-"}</td>
+                    <td className="py-4 px-4">{formatCurrency(row.amount)}</td>
                     <td className="py-4 px-4">
-                      {row.credit_amount > 0 ? formatCurrency(row.credit_amount) : "--"}
+                      {toNumber(row.amount) >= statusData.minimum_purchase_required
+                        ? "Meets INR 500+ rule"
+                        : "Below INR 500"}
                     </td>
-                    <td className="py-4 px-4">
-                      {row.debit_amount > 0 ? formatCurrency(row.debit_amount) : "--"}
-                    </td>
-                    <td className="py-4 px-4">
-                      {row.balance_after === null ? "--" : formatCurrency(row.balance_after)}
-                    </td>
+                    <td className="py-4 px-4">{row.status || "approved"}</td>
                   </tr>
                 ))}
               </tbody>

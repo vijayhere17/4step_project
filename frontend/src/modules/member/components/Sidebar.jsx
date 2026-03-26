@@ -34,6 +34,15 @@ export default function Sidebar() {
   const location = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  const handleMenuLinkClick = (event) => {
+    if (!isMobileOpen) return;
+
+    const clickedLink = event.target.closest("a");
+    if (clickedLink) {
+      setIsMobileOpen(false);
+    }
+  };
+
   const [member, setMember] = useState(null);
   useEffect(() => {
   const storedMember = localStorage.getItem("memberData");
@@ -79,15 +88,17 @@ export default function Sidebar() {
     location.pathname === "/member/consistency-status";
   const isDiwaliCelebration =
     location.pathname === "/member/diwali-celebration";
+  const isMonitoringStatus = location.pathname === "/member/monitoring-status";
   const isRoyaltyStatus = location.pathname === "/member/royalty-status";
   const isTravelclubStatus = location.pathname === "/member/travelclub-status";
   const isRankWithRewardStatus =
     location.pathname === "/member/rank-reward-status";
   const isPortfolioDetailsSection =
     isMatchingStatus ||
+    isDiwaliCelebration ||
+    isMonitoringStatus ||
     isRepurchaseStatus ||
     isConsistencyStatus ||
-    isDiwaliCelebration ||
     isRoyaltyStatus ||
     isTravelclubStatus ||
     isRankWithRewardStatus;
@@ -195,7 +206,7 @@ export default function Sidebar() {
       />
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col shrink-0 transform transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col shrink-0 transform transition-transform duration-200 lg:z-auto lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -208,7 +219,10 @@ export default function Sidebar() {
         </div>
 
         {/* Menu */}
-        <div className="flex-1 overflow-y-auto p-4 text-sm space-y-1">
+        <div
+          className="flex-1 overflow-y-auto p-4 text-sm space-y-1"
+          onClickCapture={handleMenuLinkClick}
+        >
           {/* Dashboard */}
           <Link
             to="/member/dashboard"
@@ -383,6 +397,28 @@ export default function Sidebar() {
                 </Link>
 
                 <Link
+                  to="/member/diwali-celebration"
+                  className={`block px-2 py-1 rounded ${
+                    isDiwaliCelebration
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Diwali Celebration Status
+                </Link>
+
+                <Link
+                  to="/member/monitoring-status"
+                  className={`block px-2 py-1 rounded ${
+                    isMonitoringStatus
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Business Monitoring Status
+                </Link>
+
+                <Link
                   to="/member/repurchase-status"
                   className={`block px-2 py-1 rounded ${
                     isRepurchaseStatus
@@ -402,16 +438,6 @@ export default function Sidebar() {
                   }`}
                 >
                   Consistency Status
-                </Link>
-                <Link
-                  to="/member/diwali-celebration"
-                  className={`block px-2 py-1 rounded ${
-                    isDiwaliCelebration
-                      ? "bg-blue-100 text-blue-600"
-                      : "hover:bg-blue-50"
-                  }`}
-                >
-                  Diwali Celebration
                 </Link>
                 <Link
                   to="/member/royalty-status"
@@ -531,17 +557,6 @@ export default function Sidebar() {
                 </Link>
 
                 <Link
-                  to="/member/earning-royalty"
-                  className={`block px-2 py-1 rounded ${
-                    isRoyaltyClubBonus
-                      ? "bg-blue-100 text-blue-600"
-                      : "hover:bg-blue-50"
-                  }`}
-                >
-                  Royalty Club
-                </Link>
-
-                <Link
                   to="/member/earning-monitoring"
                   className={`block px-2 py-1 rounded ${
                     isBusinessMonitoringBonus
@@ -553,6 +568,28 @@ export default function Sidebar() {
                 </Link>
 
                 <Link
+                  to="/member/earning-repurchase"
+                  className={`block px-2 py-1 rounded ${
+                    isRepurchaseBonus
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Loyalty Repurchase Bonus
+                </Link>
+
+                <Link
+                  to="/member/earning-royalty"
+                  className={`block px-2 py-1 rounded ${
+                    isRoyaltyClubBonus
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Royalty Club Bonus
+                </Link>
+
+                <Link
                   to="/member/earning-leadership"
                   className={`block px-2 py-1 rounded ${
                     isLeadershipRankBonus
@@ -561,17 +598,6 @@ export default function Sidebar() {
                   }`}
                 >
                   Leadership Rank Bonus
-                </Link>
-
-                <Link
-                  to="/member/earning-repurchase"
-                  className={`block px-2 py-1 rounded ${
-                    isRepurchaseBonus
-                      ? "bg-blue-100 text-blue-600"
-                      : "hover:bg-blue-50"
-                  }`}
-                >
-                  Repurchase Bonus
                 </Link>
 
                 <Link

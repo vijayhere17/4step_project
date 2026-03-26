@@ -24,6 +24,29 @@ export default function RankWithRewardStatus() {
     }
   }, []);
 
+  const activationDateText = useMemo(() => {
+    try {
+      const member = JSON.parse(localStorage.getItem("memberData") || "{}");
+      const rawActivationDate = member?.activation_date;
+
+      if (!rawActivationDate) {
+        return "Not Activated";
+      }
+
+      const activationDate = new Date(rawActivationDate);
+      if (Number.isNaN(activationDate.getTime())) {
+        return "Not Activated";
+      }
+
+      const day = String(activationDate.getDate()).padStart(2, "0");
+      const month = String(activationDate.getMonth() + 1).padStart(2, "0");
+      const year = activationDate.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return "Not Activated";
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -118,8 +141,8 @@ export default function RankWithRewardStatus() {
           {isLoading && <p className="text-center text-gray-500 mb-4">Loading rewards...</p>}
           {error && <p className="text-center text-red-500 mb-4">{error}</p>}
 
-          <div className="bg-[#B0422E] rounded-2xl p-6 text-white shadow-md">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="bg-[#2A74B5] rounded-2xl p-6 text-white shadow-md">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
               <div className="bg-white/20 rounded-xl p-6">
                 <p className="uppercase text-semibold">Total Target</p>
@@ -136,6 +159,11 @@ export default function RankWithRewardStatus() {
                 <h2 className="text-2xl font-bold mt-2">{summary.ranks_achieved} / {summary.total_ranks}</h2>
               </div>
 
+              <div className="bg-white/20 rounded-xl p-6">
+                <p className="uppercase text-semibold">ID Activation Date</p>
+                <h2 className="text-2xl font-bold mt-2">{activationDateText}</h2>
+              </div>
+
             </div>
           </div>
 
@@ -149,7 +177,7 @@ export default function RankWithRewardStatus() {
               <table className="w-full min-w-245 text-sm">
 
                 <thead>
-                  <tr className="bg-[#B0422E] text-white text-semibold">
+                  <tr className="bg-[#2A74B5] text-white text-semibold">
                     <th className="py-3 px-4 text-left rounded-l-xl">Sr No</th>
                     <th className="py-3 px-4 text-left">Rank</th>
                     <th className="py-3 px-4 text-left">Target</th>

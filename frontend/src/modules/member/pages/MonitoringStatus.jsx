@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
-export default function RoyaltyStatus() {
+export default function MonitoringStatus() {
   const [statusData, setStatusData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,7 +38,7 @@ export default function RoyaltyStatus() {
         }
 
         const response = await fetch(
-          `${API_BASE_URL}/member/royalty-status?user_id=${encodeURIComponent(memberUserId)}`,
+          `${API_BASE_URL}/member/business-monitoring-status?user_id=${encodeURIComponent(memberUserId)}`,
           {
             method: "GET",
             headers: {
@@ -50,7 +50,7 @@ export default function RoyaltyStatus() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data?.message || "Unable to fetch royalty status");
+          throw new Error(data?.message || "Unable to load business monitoring status");
         }
 
         if (isMounted) {
@@ -58,7 +58,7 @@ export default function RoyaltyStatus() {
         }
       } catch (fetchError) {
         if (isMounted) {
-          setError(fetchError.message || "Unable to fetch royalty status");
+          setError(fetchError.message || "Unable to load business monitoring status");
           setStatusData(null);
         }
       } finally {
@@ -94,7 +94,7 @@ export default function RoyaltyStatus() {
 
         <div className="text-center mt-6">
           <h1 className="text-3xl font-bold text-[#B0422E]">
-            Royalty Status
+            Business Monitoring Status
           </h1>
         </div>
 
@@ -103,71 +103,73 @@ export default function RoyaltyStatus() {
 
         <div className="p-6 space-y-6">
           <div className="bg-[#B0422E] rounded-2xl p-8 shadow-md">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
               <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
-                <p className="uppercase text-semibold tracking-wide">4 Step or Above</p>
-                <h2 className="text-2xl font-bold mt-2">{statusData?.step_eligible ? "Yes" : "No"}</h2>
-              </div>
-
-              <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
-                <p className="uppercase text-semibold tracking-wide">Monthly INR 500 Repurchase</p>
-                <h2 className="text-2xl font-bold mt-2">{statusData?.monthly_purchase_met ? "Yes" : "No"}</h2>
-              </div>
-
-              <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
-                <p className="uppercase text-semibold tracking-wide">Matching BV Active</p>
-                <h2 className="text-2xl font-bold mt-2">{statusData?.matching_bv_active ? "Yes" : "No"}</h2>
-              </div>
-
-              <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
-                <p className="uppercase text-semibold tracking-wide">6 Direct (Active 4 Step+) with 1000 PV+</p>
-                <h2 className="text-2xl font-bold mt-2">{statusData?.direct_referral_rule_met ? "Yes" : "No"}</h2>
-                <p className="text-sm text-white/80 mt-1">
-                  {Number(statusData?.qualified_direct_referrals || 0)} / {Number(statusData?.required_direct_referrals || 6)} qualified
+                <p className="uppercase text-semibold tracking-wide">
+                  4 Step ID Active
                 </p>
+                <h2 className="text-2xl font-bold mt-2">{statusData?.id_active_4_step ? "Yes" : "No"}</h2>
               </div>
 
               <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
-                <p className="uppercase text-semibold tracking-wide">Estimated Royalty Income</p>
+                <p className="uppercase text-semibold tracking-wide">
+                  Direct Working Members
+                </p>
+                <h2 className="text-2xl font-bold mt-2">{statusData?.direct_referrals_count ?? 0}</h2>
+              </div>
+
+              <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
+                <p className="uppercase text-semibold tracking-wide">
+                  Direct Team Income
+                </p>
+                <h2 className="text-2xl font-bold mt-2">{formatCurrency(statusData?.total_direct_team_income)}</h2>
+              </div>
+
+              <div className="bg-[#CF9D94A1] rounded-xl p-6 text-white">
+                <p className="uppercase text-semibold tracking-wide">
+                  Your Income (10%)
+                </p>
                 <h2 className="text-2xl font-bold mt-2">{formatCurrency(statusData?.estimated_income)}</h2>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 overflow-x-auto">
-            <table className="w-full min-w-175 text-sm">
+            <table className="w-full min-w-175 text-semibold">
               <thead>
                 <tr className="bg-[#B0422E] text-white">
                   <th className="py-3 px-4 text-left rounded-l-xl">Sr No</th>
-                  <th className="py-3 px-4 text-left">Month</th>
-                  <th className="py-3 px-4 text-left">Company Turnover</th>
-                  <th className="py-3 px-4 text-left">Pool %</th>
-                  <th className="py-3 px-4 text-left">Royalty Pool</th>
-                  <th className="py-3 px-4 text-left">Eligible Members</th>
-                  <th className="py-3 px-4 text-left">Earned</th>
-                  <th className="py-3 px-4 text-left rounded-r-xl">Status</th>
+                  <th className="py-3 px-4 text-left">Direct Member ID</th>
+                  <th className="py-3 px-4 text-left">Direct Member Name</th>
+                  <th className="py-3 px-4 text-left">Direct Team Income</th>
+                  <th className="py-3 px-4 text-left">Bonus %</th>
+                  <th className="py-3 px-4 text-left">Your Monitoring Income</th>
+                  <th className="py-3 px-4 text-left rounded-r-xl">Eligibility</th>
                 </tr>
               </thead>
 
               <tbody>
                 {!isLoading && rows.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="py-10 text-center text-gray-400 font-medium">
+                    <td colSpan="7" className="py-10 text-center text-gray-400 font-medium">
                       No Record Found...
                     </td>
                   </tr>
                 )}
 
                 {rows.map((row, index) => (
-                  <tr className="border-b" key={`${row.month}-${index}`}>
-                    <td className="py-4 px-4">{String(index + 1).padStart(2, "0")}</td>
-                    <td className="py-4 px-4">{row.month || "-"}</td>
-                    <td className="py-4 px-4">{formatCurrency(row.monthly_turnover)}</td>
-                    <td className="py-4 px-4">{Number(row.pool_percentage || 0)}%</td>
-                    <td className="py-4 px-4">{formatCurrency(row.royalty_pool)}</td>
-                    <td className="py-4 px-4">{row.eligible_users_count ?? 0}</td>
-                    <td className="py-4 px-4">{formatCurrency(row.earned)}</td>
-                    <td className="py-4 px-4">{row.status || "pending"}</td>
+                  <tr key={`${row.downline_user_id}-${index}`} className="border-b">
+                    <td className="py-3 px-4">{String(index + 1).padStart(2, "0")}</td>
+                    <td className="py-3 px-4">{row.downline_user_id || "-"}</td>
+                    <td className="py-3 px-4">{row.downline_name || "-"}</td>
+                    <td className="py-3 px-4">{formatCurrency(row.direct_team_income)}</td>
+                    <td className="py-3 px-4">{Number(row.bonus_percentage || 10)}%</td>
+                    <td className="py-3 px-4">{formatCurrency(row.monitoring_bonus)}</td>
+                    <td className="py-3 px-4">
+                      <span className={statusData?.eligible ? "text-green-600 font-semibold" : "text-orange-600 font-semibold"}>
+                        {statusData?.eligible ? "Eligible" : "Not Eligible"}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

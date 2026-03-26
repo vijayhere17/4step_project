@@ -9,6 +9,9 @@ export default function KYC() {
   const [step, setStep] = useState(1); // 1 = Bank Info, 2 = KYC Details
   const [isBankReadOnly, setIsBankReadOnly] = useState(false);
   const [isIdentityReadOnly, setIsIdentityReadOnly] = useState(false);
+  const [bankPassbookFile, setBankPassbookFile] = useState(null);
+  const [aadhaarCardFile, setAadhaarCardFile] = useState(null);
+  const [panCardFile, setPanCardFile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -92,6 +95,43 @@ export default function KYC() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePassbookChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setBankPassbookFile(file);
+  };
+
+  const handleAadhaarCardChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setAadhaarCardFile(file);
+  };
+
+  const handlePanCardChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setPanCardFile(file);
+  };
+
+  const renderUploadContainer = ({ id, file, onChange, disabled }) => (
+    <div className={`flex items-center gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 ${disabled ? "opacity-80" : ""}`}>
+      <input
+        id={id}
+        type="file"
+        accept=".jpg,.jpeg,.png,.pdf"
+        onChange={onChange}
+        disabled={disabled}
+        className="hidden"
+      />
+      <label
+        htmlFor={id}
+        className={`inline-flex items-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium ${disabled ? "cursor-not-allowed bg-gray-100 text-gray-400" : "cursor-pointer bg-white text-gray-700 hover:bg-gray-100"}`}
+      >
+        Choose File
+      </label>
+      <span className="text-sm text-gray-500 truncate">
+        {file ? file.name : "No file chosen"}
+      </span>
+    </div>
+  );
+
   const goToStep2 = () => {
     setError("");
     setMessage("");
@@ -113,6 +153,11 @@ export default function KYC() {
       return;
     }
 
+    if (!isBankReadOnly && !bankPassbookFile) {
+      setError("Please upload your bank passbook details");
+      return;
+    }
+
     setStep(2);
   };
 
@@ -122,6 +167,11 @@ export default function KYC() {
 
     if (!form.aadhar_number || !form.pan_number) {
       setError("Please fill Aadhar and PAN Number");
+      return;
+    }
+
+    if (!isIdentityReadOnly && (!aadhaarCardFile || !panCardFile)) {
+      setError("Please upload Aadhaar and PAN card photos");
       return;
     }
 
@@ -253,6 +303,20 @@ export default function KYC() {
                   </div>
                 ))}
 
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="sm:w-64 font-bold text-gray-600">
+                    Upload Bank Passbook Front Page Or Cancel Check Photo*
+                  </label>
+                  <div className="flex-1">
+                    {renderUploadContainer({
+                      id: "bank-passbook-photo",
+                      file: bankPassbookFile,
+                      onChange: handlePassbookChange,
+                      disabled: isBankReadOnly,
+                    })}
+                  </div>
+                </div>
+
               </div>
 
               <div className="text-center mt-10">
@@ -289,6 +353,20 @@ export default function KYC() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="sm:w-64 font-bold text-gray-600">
+                    Upload Aadhaar Card Front And Back Page  Photo*
+                  </label>
+                  <div className="flex-1">
+                    {renderUploadContainer({
+                      id: "aadhaar-card-photo",
+                      file: aadhaarCardFile,
+                      onChange: handleAadhaarCardChange,
+                      disabled: isIdentityReadOnly,
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <label className="sm:w-64 text-gray-600 font-bold">
                     PAN Number*
                   </label>
@@ -299,6 +377,20 @@ export default function KYC() {
                     readOnly={isIdentityReadOnly}
                     className={`flex-1 border-b border-gray-300 outline-none py-1 ${isIdentityReadOnly ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "focus:border-blue-600"}`}
                   />
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="sm:w-64 text-gray-600 font-bold">
+                    Upload PAN Card Front Page  Photo*
+                  </label>
+                  <div className="flex-1">
+                    {renderUploadContainer({
+                      id: "pan-card-photo",
+                      file: panCardFile,
+                      onChange: handlePanCardChange,
+                      disabled: isIdentityReadOnly,
+                    })}
+                  </div>
                 </div>
 
               </div>

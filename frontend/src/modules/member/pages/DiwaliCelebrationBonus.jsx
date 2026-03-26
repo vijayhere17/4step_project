@@ -111,9 +111,10 @@ const DiwaliCelebrationBonus = () => {
                                     <th className="p-3">Date</th>
                                     <th className="p-3">Transaction ID</th>
                                     <th className="p-3">Festival Year</th>
-                                    <th className="p-3">Target Business</th>
-                                    <th className="p-3">%</th>
+                                    <th className="p-3">Lapsed Matching Turnover</th>
+                                    <th className="p-3">Bonus %</th>
                                     <th className="p-3">Earned</th>
+                                    <th className="p-3">Requirement</th>
                                     <th className="p-3 rounded-r-xl">Status</th>
                                     </tr>
                                     </thead>
@@ -121,7 +122,7 @@ const DiwaliCelebrationBonus = () => {
                                     <tbody>
                                     {!isLoading && rows.length === 0 && (
                                       <tr className="border-b">
-                                        <td className="p-4" colSpan={8}>No Diwali bonus data found</td>
+                                        <td className="p-4" colSpan={9}>No Diwali bonus data found</td>
                                       </tr>
                                     )}
 
@@ -131,10 +132,11 @@ const DiwaliCelebrationBonus = () => {
                                         <td>{formatDate(row.date)}</td>
                                         <td>{row.transaction_id || "-"}</td>
                                         <td>{row.festival_year || "-"}</td>
-                                        <td>{formatCurrency(row.target_business)}</td>
+                                        <td>{formatCurrency(row.lapsed_matching_turnover)}</td>
                                         <td>{Number(row.percentage || 0)}%</td>
                                         <td>{formatCurrency(row.earned)}</td>
-                                        <td className="text-green-600 font-semibold">{row.status || "Approved"}</td>
+                                        <td>{row.id_active_4_step ? "4 Step ID Active" : "Not 4 Step Active"}</td>
+                                        <td className={row.status === "Approved" ? "text-green-600 font-semibold" : "text-orange-600 font-semibold"}>{row.status || "Approved"}</td>
                                       </tr>
                                     ))}
                              </tbody>

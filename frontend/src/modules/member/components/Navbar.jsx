@@ -1,6 +1,7 @@
 import { LuPanelLeftDashed } from "react-icons/lu";
 import { MdSupervisorAccount } from "react-icons/md";
 import { useEffect, useState } from "react";
+import { FiMenu } from "react-icons/fi";
 
 export default function Navbar({ pageTitle = "Dashboard" }) {
 
@@ -51,7 +52,17 @@ export default function Navbar({ pageTitle = "Dashboard" }) {
     <header className="h-16 bg-white border-b flex items-center justify-between px-6">
 
       {/* Left */}
-      <div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100"
+          onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
+          aria-label="Open sidebar"
+        >
+          <FiMenu className="text-lg" />
+        </button>
+
+        <div>
         <h1 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
           <LuPanelLeftDashed />
           {pageTitle}
@@ -69,6 +80,7 @@ export default function Navbar({ pageTitle = "Dashboard" }) {
             }
           })()}
         </p>
+        </div>
       </div>
 
       {/* Right */}

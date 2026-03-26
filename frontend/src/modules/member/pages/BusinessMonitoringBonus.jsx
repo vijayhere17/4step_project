@@ -145,11 +145,11 @@ const BusinessMonitoringBonus = () => {
                                     <th className="p-3 rounded-l-xl">Sr No</th>
                                     <th className="p-3">Date</th>
                                     <th className="p-3">Transaction ID</th>
-                                    <th className="p-3">Monitoring Period</th>
-                                    <th className="p-3">Direct Active</th>
-                                    <th className="p-3">Team Active</th>
-                                    <th className="p-3">Business Amount</th>
+                                    <th className="p-3">Direct Member</th>
+                                    <th className="p-3">Direct Team Income</th>
+                                    <th className="p-3">Bonus %</th>
                                     <th className="p-3">Earned</th>
+                                    <th className="p-3">Requirement</th>
                                     <th className="p-3">Status</th>
                                     <th className="p-3 rounded-r-xl">Wallet</th>
                                     </tr>
@@ -167,11 +167,11 @@ const BusinessMonitoringBonus = () => {
                                         <td className="p-4">{String(index + 1).padStart(2, "0")}</td>
                                         <td>{formatDate(row.cycle_date)}</td>
                                         <td>{row.transaction_id || "-"}</td>
-                                        <td>{formatMonitoringPeriod(row.cycle_date)}</td>
-                                        <td>{row.direct_active ?? "-"}</td>
-                                        <td>{row.team_active ?? "-"}</td>
-                                        <td>{formatCurrency(row.matching_income)}</td>
+                                        <td>{row.downline_user_id || "-"}</td>
+                                        <td>{formatCurrency(row.direct_team_income ?? row.matching_income)}</td>
+                                        <td>{Number(row.bonus_percentage || 10)}%</td>
                                         <td>{formatCurrency(row.bonus_amount)}</td>
+                                        <td>{row.requirement_met ? "4 Step + Working Direct" : "Requirement Pending"}</td>
                                         <td>{formatStatus(row.status)}</td>
                                         <td className={walletClassName(row.status)}>{walletText(row.status)}</td>
                                       </tr>

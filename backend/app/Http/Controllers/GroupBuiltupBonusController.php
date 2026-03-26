@@ -8,6 +8,28 @@ use Carbon\Carbon;
 
 class GroupBuiltupBonusController extends Controller
 {
+    // Dynamic daily group-builtup bonus from matching cycles and pair PV rules.
+
+    public function runCycle(string $cycleDate): array
+    {
+        $request = Request::create('/api/bonuses/group-builtup/calculate', 'POST', [
+            'cycle_date' => $cycleDate,
+        ]);
+
+        $response = $this->calculateCycle($request);
+        $payload = $response->getData(true);
+        $data = $payload['data'] ?? [];
+
+        return [
+            'cycle_date' => $data['cycle_date'] ?? $cycleDate,
+            'pair_pv' => 125,
+            'processed_members' => (int) ($data['processed_members'] ?? 0),
+            'eligible_members' => (int) ($data['eligible_members'] ?? 0),
+            'total_gross_income' => (float) ($data['total_income'] ?? 0),
+            'total_payable_income' => (float) ($data['total_income'] ?? 0),
+            'total_lapsed_income' => 0.0,
+        ];
+    }
 
     
     public function index(Request $request)

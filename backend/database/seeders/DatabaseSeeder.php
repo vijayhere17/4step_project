@@ -13,13 +13,11 @@ class DatabaseSeeder extends Seeder
   
     public function run(): void
     {
-        // User::factory(10)->create();
 
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
-        // create/update a single main member for referral testing
         $this->call(\Database\Seeders\MainMemberSeeder::class);
     }
 }

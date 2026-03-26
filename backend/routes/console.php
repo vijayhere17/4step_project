@@ -9,11 +9,14 @@ use App\Models\RoyaltyClubBonus;
 use App\Models\RoyaltySetting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\BusinessMonitoringBonusController;
 use App\Http\Controllers\LeadershipRankBonusController;
 use App\Http\Controllers\BranchTurnoverBonusController;
 use App\Http\Controllers\GroupBuiltupBonusController;
+use App\Http\Controllers\LoyaltyBonusController;
+use App\Http\Controllers\RoyaltyClubBonusController;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -23,119 +26,83 @@ Artisan::command('bonus:royalty-club {month? : Month in Y-m format} {--turnover=
     $month = $this->argument('month') ?: now()->subMonth()->format('Y-m');
     $turnoverOption = $this->option('turnover');
 
-    if ($turnoverOption === null || $turnoverOption === '') {
-        $this->error('Please provide --turnover value, e.g. php artisan bonus:royalty-club 2026-02 --turnover=2500000');
-        return 1;
-    }
-
-    $monthlyTurnover = (float) $turnoverOption;
-    if ($monthlyTurnover <= 0) {
-        $this->error('Monthly turnover must be greater than 0.');
-        return 1;
-    }
-
-    try {
-        $periodStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
-    } catch (\Throwable $exception) {
-        $this->error('Invalid month format. Use Y-m (example: 2026-02).');
-        return 1;
-    }
-
-    $periodEnd = $periodStart->copy()->endOfMonth();
-    $monthKey = $periodStart->format('Y-m');
-
-    try {
-        $result = DB::transaction(function () use ($monthKey, $periodStart, $periodEnd, $monthlyTurnover) {
-            if (RoyaltyClubBonus::query()->where('month_key', $monthKey)->exists()) {
-                throw ValidationException::withMessages([
-                    'month' => ["Royalty Club Bonus already calculated for {$monthKey}."],
-                ]);
-            }
-
-            $poolPercentage = RoyaltySetting::getDecimalValue('royalty_pool_percentage', 3.0);
-            $royaltyPoolAmount = round(($monthlyTurnover * $poolPercentage) / 100, 2);
-
-            $eligibleQuery = Member::query()
-                ->where('status', 1)
-                ->where('step_level', '>=', 4)
-                ->where('monthly_purchase', '>=', 500);
-
-            $eligibleUsersCount = $eligibleQuery->count('id');
-            if ($eligibleUsersCount === 0) {
-                return [
-                    'month' => $monthKey,
-                    'eligible_users_count' => 0,
-                    'per_user_bonus' => 0,
-                ];
-            }
-
-            $perUserBonus = round($royaltyPoolAmount / $eligibleUsersCount, 2);
-            $now = now();
-
-            $eligibleQuery
-                ->select('id')
-                ->orderBy('id')
-                ->chunkById(2000, function ($members) use (
-                    $monthKey,
-                    $periodStart,
-                    $periodEnd,
-                    $monthlyTurnover,
-                    $poolPercentage,
-                    $royaltyPoolAmount,
-                    $eligibleUsersCount,
-                    $perUserBonus,
-                    $now
-                ) {
-                    $rows = [];
-
-                    foreach ($members as $member) {
-                        $rows[] = [
-                            'member_id' => $member->id,
-                            'month_key' => $monthKey,
-                            'period_start' => $periodStart->toDateString(),
-                            'period_end' => $periodEnd->toDateString(),
-                            'monthly_turnover' => round($monthlyTurnover, 2),
-                            'pool_percentage' => $poolPercentage,
-                            'royalty_pool_amount' => $royaltyPoolAmount,
-                            'eligible_users_count' => $eligibleUsersCount,
-                            'bonus_amount' => $perUserBonus,
-                            'status' => 'pending',
-                            'calculated_at' => $now,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
-                    }
-
-                    if (!empty($rows)) {
-                        RoyaltyClubBonus::insert($rows);
-                    }
-                }, 'id');
-
-            return [
-                'month' => $monthKey,
-                'eligible_users_count' => $eligibleUsersCount,
-                'per_user_bonus' => $perUserBonus,
-            ];
-        });
-    } catch (ValidationException $exception) {
-        $message = $exception->getMessage();
-        $errors = $exception->errors();
-        if (!empty($errors)) {
-            $firstGroup = reset($errors);
-            if (is_array($firstGroup) && !empty($firstGroup[0])) {
-                $message = $firstGroup[0];
-            }
+    if ($turnoverOption !== null && $turnoverOption !== '') {
+        $turnover = (float) $turnoverOption;
+        if ($turnover <= 0) {
+            $this->error('Monthly turnover must be greater than 0.');
+            return 1;
         }
-        $this->error($message);
+
+        DB::table('company_turnovers')->updateOrInsert(
+            ['month_key' => $month],
+            [
+                'turnover_amount' => round($turnover, 2),
+                'source' => 'manual-cli',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+    }
+
+    $request = Request::create('/api/bonuses/royalty-club/calculate', 'POST', [
+        'month' => $month,
+    ]);
+
+    $response = app(RoyaltyClubBonusController::class)->calculateMonthly($request);
+    $payload = $response->getData(true);
+
+    if ($response->getStatusCode() >= 400) {
+        $this->error($payload['message'] ?? 'Unable to calculate royalty bonus.');
         return 1;
     }
 
-    $this->info('Royalty Club bonus processed for month: ' . $result['month']);
-    $this->line('Eligible users: ' . $result['eligible_users_count']);
-    $this->line('Per user bonus: ' . $result['per_user_bonus']);
+    $data = $payload['data'] ?? [];
+
+    $this->info('Royalty Club bonus processed for month: ' . ($data['month'] ?? $month));
+    $this->line('Monthly turnover: ' . ($data['monthly_turnover'] ?? 0));
+    $this->line('Eligible users: ' . ($data['eligible_users_count'] ?? 0));
+    $this->line('Per user bonus: ' . ($data['per_user_bonus'] ?? 0));
 
     return 0;
 })->purpose('Calculate monthly Royalty Club bonus using configured pool percentage');
+
+Artisan::command('royalty:turnover:add {month : Month in Y-m format} {amount : Monthly turnover amount}', function () {
+    $month = (string) $this->argument('month');
+    $amount = (float) $this->argument('amount');
+
+    try {
+        Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+    } catch (\Throwable $exception) {
+        $this->error('Invalid month format. Use Y-m (example: 2026-03).');
+        return 1;
+    }
+
+    if ($amount <= 0) {
+        $this->error('Amount must be greater than 0.');
+        return 1;
+    }
+
+    if (!DB::getSchemaBuilder()->hasTable('company_turnovers')) {
+        $this->error('Table company_turnovers does not exist. Run php artisan migrate first.');
+        return 1;
+    }
+
+    DB::table('company_turnovers')->updateOrInsert(
+        ['month_key' => $month],
+        [
+            'turnover_amount' => round($amount, 2),
+            'source' => 'manual-cli',
+            'updated_at' => now(),
+            'created_at' => now(),
+        ]
+    );
+
+    $this->info('Company turnover saved successfully.');
+    $this->line('Month: ' . $month);
+    $this->line('Turnover: ' . round($amount, 2));
+
+    return 0;
+})->purpose('Add or update monthly company turnover for royalty bonus calculation');
 
 Schedule::command('bonus:royalty-club ' . now()->subMonth()->format('Y-m') . ' --turnover=1000000')
     ->monthlyOn(1, '02:00')
@@ -262,3 +229,192 @@ Schedule::command('bonus:group-builtup ' . now()->toDateString())
     ->onFailure(function () {
         Log::error('Group Builtup daily bonus cron failed.');
     });
+
+Artisan::command('repurchase:add {user_id : Member user ID} {amount : Purchase amount} {--date= : Purchase date in Y-m-d format} {--invoice= : Optional invoice number} {--status=approved : Purchase status}', function () {
+    if (!DB::getSchemaBuilder()->hasTable('purchases')) {
+        $this->error('Table purchases does not exist. Run php artisan migrate first.');
+        return 1;
+    }
+
+    $userId = (string) $this->argument('user_id');
+    $amount = (float) $this->argument('amount');
+    $status = (string) $this->option('status');
+
+    if ($amount <= 0) {
+        $this->error('Amount must be greater than 0.');
+        return 1;
+    }
+
+    $member = Member::query()->where('user_id', $userId)->first();
+
+    if (!$member) {
+        $this->error('Member not found for user_id: ' . $userId);
+        return 1;
+    }
+
+    $dateOption = $this->option('date');
+    $purchaseDate = now()->toDateString();
+
+    if (!empty($dateOption)) {
+        try {
+            $purchaseDate = Carbon::createFromFormat('Y-m-d', (string) $dateOption)->toDateString();
+        } catch (\Throwable $exception) {
+            $this->error('Invalid --date format. Use Y-m-d.');
+            return 1;
+        }
+    }
+
+    $invoiceNo = (string) ($this->option('invoice') ?: 'INV-' . now()->format('YmdHis') . '-' . $member->id);
+
+    $purchaseId = DB::table('purchases')->insertGetId([
+        'member_id' => $member->id,
+        'invoice_no' => $invoiceNo,
+        'purchase_date' => $purchaseDate,
+        'amount' => round($amount, 2),
+        'cashback_amount' => 0,
+        'status' => $status ?: 'approved',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->info('Repurchase purchase added successfully.');
+    $this->line('Purchase ID: ' . $purchaseId);
+    $this->line('Member: ' . $member->user_id . ' (' . $member->fullname . ')');
+    $this->line('Amount: ' . round($amount, 2));
+    $this->line('Date: ' . $purchaseDate);
+    $this->line('Invoice: ' . $invoiceNo);
+
+    return 0;
+})->purpose('Add manual repurchase purchase data from terminal for dynamic status/bonus flow');
+
+Artisan::command('bonus:loyalty-monthly {month? : Month in Y-m format}', function () {
+    $month = $this->argument('month') ?: now()->format('Y-m');
+
+    try {
+        Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+    } catch (\Throwable $exception) {
+        $this->error('Invalid month format. Use Y-m (example: 2026-03).');
+        return 1;
+    }
+
+    $request = Request::create('/api/bonuses/loyalty/calculate-monthly', 'POST', [
+        'month' => $month,
+    ]);
+
+    $response = app(LoyaltyBonusController::class)->calculateMonthly($request);
+    $payload = $response->getData(true);
+
+    if ($response->getStatusCode() >= 400) {
+        $this->error($payload['message'] ?? 'Unable to calculate monthly loyalty bonus.');
+        return 1;
+    }
+
+    $this->info('Loyalty repurchase bonus processed for month: ' . ($payload['data']['month'] ?? $month));
+    $this->line('Processed members: ' . ($payload['data']['processed_members'] ?? 0));
+    $this->line('Eligible members: ' . ($payload['data']['eligible_members'] ?? 0));
+    $this->line('Total bonus: ' . ($payload['data']['total_bonus'] ?? 0));
+
+    return 0;
+})->purpose('Calculate monthly Loyalty Repurchase bonus from purchases');
+
+Artisan::command('repurchase:add-all-months {user_id? : Member user ID (optional)} {--amounts= : Comma-separated 5 amounts, e.g. 500,600,700,800,900} {--base-month= : Base month in Y-m format; defaults to current month as Month 5} {--status=approved : Purchase status}', function () {
+    if (!DB::getSchemaBuilder()->hasTable('purchases')) {
+        $this->error('Table purchases does not exist. Run php artisan migrate first.');
+        return 1;
+    }
+
+    $userId = trim((string) ($this->argument('user_id') ?: ''));
+    $member = null;
+
+    if ($userId !== '') {
+        $member = Member::query()->where('user_id', $userId)->first();
+    } else {
+        $member = Member::query()->orderBy('id')->first();
+    }
+
+    if (!$member) {
+        $this->error('Member not found. Pass a valid user_id, e.g. php artisan repurchase:add-all-months MAINDEV001');
+        return 1;
+    }
+
+    $rawAmounts = trim((string) ($this->option('amounts') ?: ''));
+    if ($rawAmounts === '') {
+        $rawAmounts = '500,500,500,500,500';
+    }
+
+    $amountValues = array_map('trim', explode(',', $rawAmounts));
+    if (count($amountValues) !== 5) {
+        $this->error('Option --amounts must contain exactly 5 comma-separated values.');
+        return 1;
+    }
+
+    $amounts = [];
+    foreach ($amountValues as $value) {
+        $amount = (float) $value;
+        if ($amount <= 0) {
+            $this->error('All amounts must be greater than 0.');
+            return 1;
+        }
+
+        $amounts[] = round($amount, 2);
+    }
+
+    $baseMonthOption = trim((string) ($this->option('base-month') ?: ''));
+    try {
+        $baseDate = $baseMonthOption !== ''
+            ? Carbon::createFromFormat('Y-m', $baseMonthOption)->startOfMonth()
+            : Carbon::now()->startOfMonth();
+    } catch (\Throwable $exception) {
+        $this->error('Invalid --base-month format. Use Y-m (example: 2026-03).');
+        return 1;
+    }
+
+    $status = trim((string) ($this->option('status') ?: 'approved'));
+    $now = now();
+    $inserted = 0;
+
+    for ($i = 0; $i < 5; $i++) {
+        $monthIndex = $i + 1;
+        $monthDate = $baseDate->copy()->subMonths(4 - $i);
+        $purchaseDate = $monthDate->copy()->endOfMonth()->toDateString();
+        $invoiceNo = 'SEQ-' . $member->id . '-' . $monthDate->format('Ym') . '-' . $monthIndex;
+
+        DB::table('purchases')->insert([
+            'member_id' => $member->id,
+            'invoice_no' => $invoiceNo,
+            'purchase_date' => $purchaseDate,
+            'amount' => $amounts[$i],
+            'cashback_amount' => 0,
+            'status' => $status,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $inserted++;
+
+        $this->line('Month ' . $monthIndex . ' | ' . $monthDate->format('Y-m') . ' | Amount: ' . $amounts[$i]);
+    }
+
+    $this->info('Monthly repurchase entries added successfully.');
+    $this->line('Member: ' . $member->user_id . ' (' . $member->fullname . ')');
+    $this->line('Inserted rows: ' . $inserted);
+    $this->line('Run next: php artisan bonus:loyalty-monthly ' . $baseDate->format('Y-m'));
+
+    return 0;
+})->purpose('Add manual Month 1..Month 5 purchases from terminal for dynamic consistency flow');
+
+Artisan::command('bonus:loyalty-consistency', function () {
+    $response = app(LoyaltyBonusController::class)->calculateConsistencyBonus();
+    $payload = $response->getData(true);
+
+    if ($response->getStatusCode() >= 400) {
+        $this->error($payload['message'] ?? 'Unable to calculate consistency bonus.');
+        return 1;
+    }
+
+    $this->info($payload['message'] ?? 'Consistency bonus calculated');
+    $this->line('Qualified members: ' . ($payload['data']['qualified_members'] ?? 0));
+    $this->line('Total bonus: ' . ($payload['data']['total_bonus'] ?? 0));
+
+    return 0;
+})->purpose('Calculate consistency bonus from purchases for all eligible members');
