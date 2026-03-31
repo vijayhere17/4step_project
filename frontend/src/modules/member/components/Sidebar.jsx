@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { MdProductionQuantityLimits } from "react-icons/md";
+
 
 
 import {
@@ -145,6 +147,7 @@ export default function Sidebar() {
   const isInbox = location.pathname === "/member/inbox";
   const isOutbox = location.pathname === "/member/outbox";
   const isMailBoxSection = isCompose || isInbox || isOutbox;
+  const isProducts = location.pathname === "/member/products";
 
   const [openAccount, setOpenAccount] = useState(isAccountSection);
   const [openPortfolio, setOpenPortfolio] = useState(isPortfolioSection);
@@ -206,12 +209,12 @@ export default function Sidebar() {
       />
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r flex flex-col shrink-0 transform transition-transform duration-200 lg:z-auto lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-300 flex flex-col shrink-0 transform transition-transform duration-200 lg:z-auto lg:translate-x-0 lg:h-screen lg:sticky lg:top-0 ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b">
+        <div className="h-16 flex items-center px-5 border-b border-gray-300">
           <img src="/assets/4Step (1).png" alt="logo" className="h-9" />
           <p className="text-xs text-gray-400 ml-2 whitespace-nowrap">
             One destination success
@@ -722,9 +725,20 @@ export default function Sidebar() {
                 >
                   Outbox
                 </Link>
+                
               </div>
             )}
           </div>
+          <Link
+            to="/member/products"
+            className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${
+              isProducts ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
+            }`}
+          >
+            <span className="flex items-center ">
+              <MdProductionQuantityLimits className="mr-2 text-[25px]" /> Products
+            </span>
+          </Link>
           <Link
             to="/member/downloads"
             className="p-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center justify-between"
@@ -733,6 +747,7 @@ export default function Sidebar() {
               <FiDownload className="mr-2 text-[25px]" /> Downloads
             </span>
           </Link>
+          
         </div>
 
      <div className="border-t bg-gray-100 px-4 py-3">
@@ -766,7 +781,7 @@ export default function Sidebar() {
     {/* Logout */}
     <button
       onClick={handleLogout}
-      className="p-2 rounded-md hover:bg-gray-200 transition-all duration-200"
+      className="p-2 rounded-md hover:bg-gray-200 transition-all duration-200 "
     >
       <FiLogOut className="w-5 h-5 text-gray-600" />
     </button>

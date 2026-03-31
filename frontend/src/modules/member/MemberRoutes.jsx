@@ -38,6 +38,7 @@ import RoyaltyStatus from "./pages/RoyaltyStatus";
 import TravelclubStatus from "./pages/TravelclubStatus";
 import GroupBuiltupBonus from "./pages/GroupBuiltupBonus";
 import Downloads from "./pages/Downloads";
+import Products from "./pages/Products";
 
 export default function MemberRoutes() {
   return (
@@ -91,6 +92,7 @@ export default function MemberRoutes() {
         <Route path="outbox" element={<Outbox />} />
         <Route path="compose" element={<Compose />} />
         <Route path="downloads" element={<Downloads />} />
+        <Route path="products" element={<Products />} />
       </Route>
     </>
   );

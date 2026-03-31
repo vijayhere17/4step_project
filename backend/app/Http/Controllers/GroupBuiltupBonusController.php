@@ -10,6 +10,17 @@ class GroupBuiltupBonusController extends Controller
 {
     // Dynamic daily group-builtup bonus from matching cycles and pair PV rules.
 
+    private const STEP_CONFIG = [
+        1 => ['pair_pv' => 125, 'cycle_cap' => 500, 'daily_cap' => 1000],
+        2 => ['pair_pv' => 250, 'cycle_cap' => 1000, 'daily_cap' => 2000],
+        3 => ['pair_pv' => 500, 'cycle_cap' => 2000, 'daily_cap' => 4000],
+        4 => ['pair_pv' => 1000, 'cycle_cap' => 5000, 'daily_cap' => 10000],
+        5 => ['pair_pv' => 2000, 'cycle_cap' => 10000, 'daily_cap' => 20000],
+        6 => ['pair_pv' => 4000, 'cycle_cap' => 20000, 'daily_cap' => 40000],
+    ];
+
+    private const DEFAULT_INCOME_PER_PAIR = 125.0;
+
     public function runCycle(string $cycleDate): array
     {
         $request = Request::create('/api/bonuses/group-builtup/calculate', 'POST', [
@@ -93,11 +104,20 @@ class GroupBuiltupBonusController extends Controller
 
             $processed++;
 
-            $leftPv = $member->left_pv;
-            $rightPv = $member->right_pv;
+            $leftPv = (float) ($member->builtup_left_pv ?? 0);
+            $rightPv = (float) ($member->builtup_right_pv ?? 0);
 
-            $pairPv = 125;
-            $incomePerPair = 125;
+            if ($leftPv <= 0 || $rightPv <= 0) {
+                continue;
+            }
+
+            $stepLevel = (int) ($member->package_step ?? 0);
+            $stepConfig = self::STEP_CONFIG[$stepLevel] ?? self::STEP_CONFIG[1];
+
+            $pairPv = (float) $stepConfig['pair_pv'];
+            $cycleCap = (float) $stepConfig['cycle_cap'];
+            $dailyCap = (float) $stepConfig['daily_cap'];
+            $incomePerPair = self::DEFAULT_INCOME_PER_PAIR;
 
             $matchingPv = min($leftPv, $rightPv);
 
@@ -110,29 +130,43 @@ class GroupBuiltupBonusController extends Controller
             $eligible++;
 
             $grossIncome = $pairs * $incomePerPair;
+            $payableIncome = min($grossIncome, $cycleCap, $dailyCap);
+            $lapsedIncome = max(0, $grossIncome - $payableIncome);
+
+            $lapsedPairs = (int) floor($lapsedIncome / $incomePerPair);
+            $lapsedPv = $lapsedPairs * $pairPv;
+            $usedPv = $pairs * $pairPv;
 
             DB::table('group_builtup_bonuses')->insert([
                 'member_id' => $member->id,
                 'cycle_date' => $cycleDate,
                 'cycle_key' => $cycleKey,
+                'step_level' => $stepLevel,
+                'left_pv_before' => $leftPv,
+                'right_pv_before' => $rightPv,
                 'matching_pv' => $pairs * $pairPv,
                 'matched_pairs' => $pairs,
+                'income_per_pair' => $incomePerPair,
                 'gross_income' => $grossIncome,
-                'payable_income' => $grossIncome,
+                'daily_cap' => $dailyCap,
+                'payable_income' => $payableIncome,
+                'lapsed_income' => $lapsedIncome,
+                'lapsed_pv' => $lapsedPv,
+                'left_pv_after' => max(0, $leftPv - $usedPv),
+                'right_pv_after' => max(0, $rightPv - $usedPv),
                 'status' => 'pending',
+                'calculated_at' => now(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            $totalIncome += $grossIncome;
-
-            $usedPv = $pairs * $pairPv;
+            $totalIncome += $payableIncome;
 
             DB::table('members')
                 ->where('id', $member->id)
                 ->update([
-                    'left_pv' => $leftPv - $usedPv,
-                    'right_pv' => $rightPv - $usedPv
+                    'builtup_left_pv' => max(0, $leftPv - $usedPv),
+                    'builtup_right_pv' => max(0, $rightPv - $usedPv)
                 ]);
         }
 

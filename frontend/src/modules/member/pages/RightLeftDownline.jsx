@@ -4,6 +4,7 @@ import useReferralDownline from "../hooks/useReferralDownline";
 
 const formatDate = (dateValue) => {
   if (!dateValue) return "--";
+
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "--";
 
@@ -14,11 +15,65 @@ const formatDate = (dateValue) => {
   return `${day}-${month}-${year}`;
 };
 
+const toNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const resolveStep = (member) => {
+  if (!member || typeof member !== "object") return 0;
+
+  const possibleStep =
+    member.current_step ??
+    member.step_level ??
+    member.package_step ??
+    member.step ??
+    0;
+
+  const stepNumber = toNumber(possibleStep);
+
+  if (stepNumber >= 1 && stepNumber <= 6) {
+    return stepNumber;
+  }
+
+  const pv = toNumber(member.pv ?? member.current_pv ?? member.total_pv ?? 0);
+
+  if (pv >= 4000) return 6;
+  if (pv >= 2000) return 5;
+  if (pv >= 1000) return 4;
+  if (pv >= 500) return 3;
+  if (pv >= 250) return 2;
+  if (pv >= 125) return 1;
+
+  return 0;
+};
+
+const getActivationText = (member) => {
+  const isActive =
+    Number(member?.status) === 1 ||
+    String(member?.activation_status || "")
+      .toLowerCase()
+      .trim() === "activated";
+
+  if (!isActive) {
+    return "Inactive";
+  }
+
+  const step = resolveStep(member);
+
+  if (step > 0) {
+    return `Activated (${step} Step)`;
+  }
+
+  return "Activated";
+};
+
 export default function ReferralLeftRight() {
   const { rows, isLoading, error } = useReferralDownline();
 
-  const leftData = rows.filter((row) => row.sponsored_side === "L");
-  const rightData = rows.filter((row) => row.sponsored_side === "R");
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const leftData = safeRows.filter((row) => row.sponsored_side === "L");
+  const rightData = safeRows.filter((row) => row.sponsored_side === "R");
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -36,17 +91,19 @@ export default function ReferralLeftRight() {
         <div className="p-6">
           <div className="bg-white rounded-2xl shadow-sm p-6 grid grid-cols-1 xl:grid-cols-2 gap-6 font-medium">
             {isLoading && (
-              <p className="xl:col-span-2 text-center text-gray-500">Loading downline...</p>
+              <p className="xl:col-span-2 text-center text-gray-500">
+                Loading downline...
+              </p>
             )}
 
             {!isLoading && error && (
-              <p className="xl:col-span-2 text-center text-red-500">{error}</p>
+              <p className="xl:col-span-2 text-center text-red-500">
+                {error}
+              </p>
             )}
 
             <Table title="Left Associates" data={leftData} />
-
             <Table title="Right Associates" data={rightData} />
-
           </div>
         </div>
       </div>
@@ -74,7 +131,7 @@ function Table({ title, data = [] }) {
           <tbody>
             {Array.isArray(data) && data.length > 0 ? (
               data.map((member, index) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
+                <tr key={member.id || member.user_id || index} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     {formatDate(member.created_at)}
                   </td>
@@ -82,7 +139,7 @@ function Table({ title, data = [] }) {
                   <td className="py-3 px-4">{member.state || "--"}</td>
                   <td className="py-3 px-4">{member.city || "--"}</td>
                   <td className="py-3 px-4">
-                    {Number(member.status) === 1 ? "Activated" : "Inactive"}
+                    {getActivationText(member)}
                   </td>
                 </tr>
               ))

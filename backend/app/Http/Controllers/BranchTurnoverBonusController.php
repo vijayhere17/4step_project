@@ -101,15 +101,19 @@ class BranchTurnoverBonusController extends Controller
             $percentage = $branch->commission_percentage;
             $bonus = ($turnover * $percentage) / 100;
 
-            BranchTurnoverBonus::create([
-                "branch_id" => $branch->id,
-                "month_key" => $month,
-                "total_turnover" => $turnover,
-                "commission_percentage" => $percentage,
-                "bonus_amount" => $bonus,
-                "status" => "pending",
-                "calculated_at" => now()
-            ]);
+            BranchTurnoverBonus::updateOrCreate(
+                [
+                    "branch_id" => $branch->id,
+                    "month_key" => $month,
+                ],
+                [
+                    "total_turnover" => $turnover,
+                    "commission_percentage" => $percentage,
+                    "bonus_amount" => $bonus,
+                    "status" => "pending",
+                    "calculated_at" => now(),
+                ]
+            );
 
             $totalTurnover += $turnover;
             $totalBonus += $bonus;

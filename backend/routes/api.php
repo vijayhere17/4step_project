@@ -17,6 +17,7 @@ use App\Http\Controllers\IncomeSummaryController;
 use App\Http\Controllers\EarningBalanceController;
 use App\Http\Controllers\RankRewardController;
 use App\Http\Controllers\TravelClubBonusController;
+use App\Http\Controllers\AdminProductController;
 
 
 // API routes for member operations (stateless, no CSRF)
@@ -29,6 +30,8 @@ Route::get('member/dashboard-stats', [MemberController::class, 'dashboardStats']
 Route::post('member/activate-package', [MemberController::class, 'activatePackage']);
 Route::get('member/consistency-status', [RepurchaseWalletStatusController::class, 'index']);
 Route::get('member/repurchase-status', [LoyaltyBonusController::class, 'repurchaseStatus']);
+Route::get('member/products', [AdminProductController::class, 'memberProducts']);
+Route::post('member/products/purchase', [AdminProductController::class, 'purchaseFromWallet']);
 Route::get('/member/tree', [MemberController::class, 'tree']);
 Route::get('member/profile', [MemberController::class, 'profile']);
 Route::put('member/profile', [MemberController::class, 'updateProfile']);

@@ -42,23 +42,35 @@ function saveMemberData(data) {
   localStorage.setItem("memberData", JSON.stringify(data));
 }
 
+function toNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
 function getStepFromPackageId(packageId) {
   const match = String(packageId || "").match(/step[-_]?(\d+)/i);
   return match ? Number(match[1]) : 0;
 }
 
 function getMemberStep(member) {
-  return Number(
-    member?.selected_package_step ||
-      member?.package_step ||
-      member?.step_level ||
+  return toNumber(
+    member?.selected_package_step ??
+      member?.package_step ??
+      member?.step_level ??
+      member?.current_step ??
       getStepFromPackageId(member?.selected_package_id)
   );
 }
 
 function isActivated(member) {
-  const status = String(member?.status || "").toLowerCase();
-  return ["1", "true", "active", "activated", "approved"].includes(status);
+  const status = String(member?.status ?? "").toLowerCase().trim();
+  const step = getMemberStep(member);
+
+  return (
+    ["1", "true", "active", "activated", "approved"].includes(status) ||
+    step > 0 ||
+    !!member?.activation_date
+  );
 }
 
 function formatCountdown(ms) {
@@ -80,7 +92,7 @@ function formatCurrency(value) {
   return `₹${new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(Number(value || 0))}`;
+  }).format(toNumber(value))}`;
 }
 
 function StatCard({ title, amount, note, icon, color }) {
@@ -130,24 +142,19 @@ export default function Dashboard() {
   const customerId = memberUserId ? `MLM-${memberUserId}` : "MLM-00000";
 
   const memberStep = useMemo(() => getMemberStep(memberData), [memberData]);
-  const activeStatus = useMemo(
-    () => isActivated(memberData) && memberStep > 0,
-    [memberData, memberStep]
-  );
+  const activeStatus = useMemo(() => isActivated(memberData), [memberData]);
 
-  const activationKey = `memberActivationDeadline30d:${memberUserId}`;
+  function getActivationDeadline(member) {
+    const createdAt = member?.created_at;
 
-  function getActivationDeadline() {
-    const storedDeadline = Number(localStorage.getItem(activationKey));
-    const now = Date.now();
-
-    if (storedDeadline && storedDeadline > now) {
-      return storedDeadline;
+    if (createdAt) {
+      const createdTime = new Date(createdAt).getTime();
+      if (!Number.isNaN(createdTime)) {
+        return createdTime + ACTIVATION_WINDOW_MS;
+      }
     }
 
-    const newDeadline = now + ACTIVATION_WINDOW_MS;
-    localStorage.setItem(activationKey, newDeadline);
-    return newDeadline;
+    return Date.now() + ACTIVATION_WINDOW_MS;
   }
 
   useEffect(() => {
@@ -165,11 +172,17 @@ export default function Dashboard() {
 
         const updatedMember = {
           ...memberData,
-          selected_package_id: data.selected_package_id,
-          selected_package_step: data.selected_package_step,
-          package_step: data.package_step,
-          step_level: data.step_level,
-          status: data.status,
+          ...data,
+          selected_package_id: data.selected_package_id ?? memberData?.selected_package_id,
+          selected_package_step: data.selected_package_step ?? memberData?.selected_package_step,
+          package_step: data.package_step ?? memberData?.package_step,
+          step_level: data.step_level ?? memberData?.step_level,
+          current_step: data.current_step ?? memberData?.current_step,
+          status: data.status ?? memberData?.status,
+          activation_date: data.activation_date ?? memberData?.activation_date,
+          created_at: data.created_at ?? memberData?.created_at,
+          fullname: data.fullname ?? memberData?.fullname,
+          user_id: data.user_id ?? memberData?.user_id,
         };
 
         setMemberData(updatedMember);
@@ -186,11 +199,11 @@ export default function Dashboard() {
     if (!memberUserId) return;
 
     if (activeStatus) {
-      setCountdown("Active");
+      setCountdown(memberStep > 0 ? `${memberStep} Step` : "Active");
       return;
     }
 
-    const deadline = getActivationDeadline();
+    const deadline = getActivationDeadline(memberData);
 
     const updateCountdown = () => {
       setCountdown(formatCountdown(deadline - Date.now()));
@@ -200,7 +213,7 @@ export default function Dashboard() {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [memberUserId, activeStatus]);
+  }, [memberUserId, activeStatus, memberData, memberStep]);
 
   useEffect(() => {
     if (!memberUserId) return;
@@ -216,18 +229,18 @@ export default function Dashboard() {
         const data = res?.data?.data || {};
 
         setStats({
-          total_team: Number(data.total_team) || 0,
-          total_active_team: Number(data.total_active_team) || 0,
-          total_manager_left: Number(data.total_manager_left) || 0,
-          total_manager_right: Number(data.total_manager_right) || 0,
-          id_position_step: Number(data.id_position_step) || 0,
+          total_team: toNumber(data.total_team),
+          total_active_team: toNumber(data.total_active_team),
+          total_manager_left: toNumber(data.total_manager_left),
+          total_manager_right: toNumber(data.total_manager_right),
+          id_position_step: toNumber(data.id_position_step),
           leadership_rank: data.leadership_rank || "N/A",
           rank_with_reward: data.rank_with_reward || "N/A",
-          repurchase_balance: Number(data.repurchase_balance) || 0,
-          consistency_balance: Number(data.consistency_balance) || 0,
-          earning_balance: Number(data.earning_balance) || 0,
-          direct_id: Number(data.direct_id) || 0,
-          direct_branch: Number(data.direct_branch) || 0,
+          repurchase_balance: toNumber(data.repurchase_balance),
+          consistency_balance: toNumber(data.consistency_balance),
+          earning_balance: toNumber(data.earning_balance),
+          direct_id: toNumber(data.direct_id),
+          direct_branch: toNumber(data.direct_branch),
         });
       } catch (error) {
         console.error("Dashboard stats fetch error:", error);

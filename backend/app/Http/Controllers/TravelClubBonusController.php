@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class TravelClubBonusController extends Controller
 {
@@ -35,13 +36,23 @@ class TravelClubBonusController extends Controller
             ], 404);
         }
 
-        // get wallet
-        $wallet = DB::table('wallets')
-            ->where('user_id', $member->id)
-            ->first();
+        $now = Carbon::now();
+        $financialYearStart = $now->month >= 4
+            ? Carbon::create($now->year, 4, 1)->startOfDay()
+            : Carbon::create($now->year - 1, 4, 1)->startOfDay();
+        $financialYearEnd = $financialYearStart->copy()->addYear()->subDay()->endOfDay();
 
-        $gbBonus = $wallet->gb_bonus ?? 0;
-        $prBonus = $wallet->pr_bonus ?? 0;
+        $gbBonus = (float) DB::table('group_builtup_bonuses')
+            ->where('member_id', $member->id)
+            ->whereIn('status', ['approved', 'paid'])
+            ->whereBetween('cycle_date', [$financialYearStart->toDateString(), $financialYearEnd->toDateString()])
+            ->sum('payable_income');
+
+        $prBonus = (float) DB::table('leadership_rank_bonuses')
+            ->where('upline_member_id', $member->id)
+            ->whereIn('status', ['approved', 'paid'])
+            ->whereBetween('cycle_date', [$financialYearStart->toDateString(), $financialYearEnd->toDateString()])
+            ->sum('bonus_amount');
 
         $totalBonus = $gbBonus + $prBonus;
 
@@ -123,6 +134,8 @@ class TravelClubBonusController extends Controller
                 'gb_bonus' => $gbBonus,
                 'pr_bonus' => $prBonus,
                 'total_bonus' => $totalBonus,
+                'financial_year_start' => $financialYearStart->toDateString(),
+                'financial_year_end' => $financialYearEnd->toDateString(),
                 'reward' => $reward,
                 'trip_type' => $tripType,
                 'duration' => $duration,

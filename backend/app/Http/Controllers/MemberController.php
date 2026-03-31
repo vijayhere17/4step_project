@@ -10,17 +10,20 @@ use App\Models\IdCard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
+use Carbon\Carbon;
 
 class MemberController extends Controller
 {
+    private const CONSISTENCY_TX_PREFIX = 'CONSISTENCY_TX:';
+
    
     private const PACKAGES = [
-        ['id' => 'step-1', 'step' => 1, 'label' => '1 Step', 'pv' => 125,  'amount_min' => 1199,  'amount_max' => 1500,  'cycle_capping' => 1000,  'daily_capping' => 2000],
-        ['id' => 'step-2', 'step' => 2, 'label' => '2 Step', 'pv' => 250,  'amount_min' => 1999,  'amount_max' => 2500,  'cycle_capping' => 2000,  'daily_capping' => 4000],
-        ['id' => 'step-3', 'step' => 3, 'label' => '3 Step', 'pv' => 500,  'amount_min' => 2999,  'amount_max' => 3500,  'cycle_capping' => 3000,  'daily_capping' => 6000],
+        ['id' => 'step-1', 'step' => 1, 'label' => '1 Step', 'pv' => 125,  'amount_min' => 1199,  'amount_max' => 1500,  'cycle_capping' => 500,  'daily_capping' => 1000],
+        ['id' => 'step-2', 'step' => 2, 'label' => '2 Step', 'pv' => 250,  'amount_min' => 1999,  'amount_max' => 2500,  'cycle_capping' => 1000,  'daily_capping' => 2000],
+        ['id' => 'step-3', 'step' => 3, 'label' => '3 Step', 'pv' => 500,  'amount_min' => 2999,  'amount_max' => 3500,  'cycle_capping' => 2000,  'daily_capping' => 4000],
         ['id' => 'step-4', 'step' => 4, 'label' => '4 Step', 'pv' => 1000, 'amount_min' => 3999,  'amount_max' => 4500,  'cycle_capping' => 5000,  'daily_capping' => 10000],
-        ['id' => 'step-5', 'step' => 5, 'label' => '5 Step', 'pv' => 2000, 'amount_min' => 5999,  'amount_max' => 7500,  'cycle_capping' => 5000,  'daily_capping' => 10000],
-        ['id' => 'step-6', 'step' => 6, 'label' => '6 Step', 'pv' => 4000, 'amount_min' => 11599, 'amount_max' => 15000, 'cycle_capping' => 10000, 'daily_capping' => 20000],
+        ['id' => 'step-5', 'step' => 5, 'label' => '5 Step', 'pv' => 2000, 'amount_min' => 5999,  'amount_max' => 7500,  'cycle_capping' => 10000,  'daily_capping' => 20000],
+        ['id' => 'step-6', 'step' => 6, 'label' => '6 Step', 'pv' => 4000, 'amount_min' => 11599, 'amount_max' => 15000, 'cycle_capping' => 20000, 'daily_capping' => 40000],
     ];
     public function signup(Request $request)
     {
@@ -318,10 +321,46 @@ class MemberController extends Controller
             return response()->json(['message' => 'Invalid package selected'], 422);
         }
 
+        $now = now();
+        $isCurrentlyActive = (int) ($member->status ?? 0) === 1;
+        $currentStep = $this->resolveMemberPackageStep($member);
+        $targetStep = (int) ($package['step'] ?? 0);
+
+        if (!$isCurrentlyActive) {
+            $registrationDate = Carbon::parse($member->created_at);
+            $activationDeadline = $registrationDate->copy()->addDays(30);
+
+            if ($now->greaterThan($activationDeadline)) {
+                return response()->json([
+                    'message' => 'Activation deadline exceeded (30 days from registration)',
+                    'activation_deadline' => $activationDeadline->toDateString(),
+                ], 422);
+            }
+        }
+
+        if ($isCurrentlyActive && $targetStep > $currentStep) {
+            if (empty($member->activation_date)) {
+                return response()->json([
+                    'message' => 'Activation date missing; cannot validate upgrade window',
+                ], 422);
+            }
+
+            $upgradeDeadline = Carbon::parse($member->activation_date)->addDays(180);
+            if ($now->greaterThan($upgradeDeadline)) {
+                return response()->json([
+                    'message' => 'Upgrade window expired (180 days from activation)',
+                    'upgrade_deadline' => $upgradeDeadline->toDateString(),
+                ], 422);
+            }
+        }
+
         $updateData = [
             'status'          => 1,
-            'activation_date' => now(),
         ];
+
+        if (!$isCurrentlyActive) {
+            $updateData['activation_date'] = $now;
+        }
 
         if (Schema::hasColumn('members', 'package_step')) {
             $updateData['package_step'] = (int) $package['step'];
@@ -641,18 +680,29 @@ class MemberController extends Controller
 
         [$idCol, $identifier] = $this->rwTableIdColumn($table, $memberId, $userId);
 
+        $query = DB::table($table)
+            ->where($idCol, $identifier)
+            ->where(function ($innerQuery) {
+                $innerQuery->whereNull('description')
+                    ->orWhere(function ($textQuery) {
+                        $textQuery->where('description', 'not like', self::CONSISTENCY_TX_PREFIX . '%')
+                            ->where('description', 'not like', '%(Consistency wallet)%');
+                    });
+            });
+
         if (Schema::hasColumn($table, 'balance_after')) {
-            $latest = DB::table($table)->where($idCol, $identifier)->orderByDesc('id')->value('balance_after');
+            $latest = (clone $query)->orderByDesc('id')->value('balance_after');
 
             if ($latest !== null) {
                 return round((float) $latest, 2);
             }
         }
+
         if (Schema::hasColumn($table, 'amount') && Schema::hasColumn($table, 'type')) {
             $debitTypes = ['debit', 'dr', 'deduct', 'withdrawal', 'withdraw', 'purchase'];
 
-            $credits = (float) DB::table($table)->where($idCol, $identifier)->whereNotIn('type', $debitTypes)->sum('amount');
-            $debits  = (float) DB::table($table)->where($idCol, $identifier)->whereIn('type',    $debitTypes)->sum('amount');
+            $credits = (float) (clone $query)->whereNotIn('type', $debitTypes)->sum('amount');
+            $debits  = (float) (clone $query)->whereIn('type', $debitTypes)->sum('amount');
 
             return round($credits - $debits, 2);
         }
@@ -831,18 +881,41 @@ class MemberController extends Controller
     }
     private function getConsistencyBalance(int $memberId, string $userId): float
     {
-        if (!Schema::hasTable('loyalty_bonuses') || !Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
-            return 0.0;
+        $bonusCredits = 0.0;
+
+        if (Schema::hasTable('loyalty_bonuses') && Schema::hasColumn('loyalty_bonuses', 'bonus_amount')) {
+            $query = DB::table('loyalty_bonuses');
+            $this->applyMemberFilter($query, 'loyalty_bonuses', $memberId, $userId);
+
+            if (Schema::hasColumn('loyalty_bonuses', 'type')) {
+                $query->where('type', 'consistency');
+            }
+
+            $bonusCredits = (float) $query->sum('bonus_amount');
         }
 
-        $query = DB::table('loyalty_bonuses');
-        $this->applyMemberFilter($query, 'loyalty_bonuses', $memberId, $userId);
-
-        if (Schema::hasColumn('loyalty_bonuses', 'type')) {
-            $query->where('type', 'consistency');
+        $table = 'repurchase_wallet_transactions';
+        if (!Schema::hasTable($table)) {
+            return round($bonusCredits, 2);
         }
 
-        return round((float) $query->sum('bonus_amount'), 2);
+        [$idCol, $identifier] = $this->rwTableIdColumn($table, $memberId, $userId);
+        $txQuery = DB::table($table)
+            ->where($idCol, $identifier)
+            ->where(function ($innerQuery) {
+                $innerQuery->where('description', 'like', self::CONSISTENCY_TX_PREFIX . '%')
+                    ->orWhere('description', 'like', '%(Consistency wallet)%');
+            });
+
+        $credits = 0.0;
+        $debits = 0.0;
+
+        if (Schema::hasColumn($table, 'amount') && Schema::hasColumn($table, 'type')) {
+            $credits = (float) (clone $txQuery)->where('type', 'credit')->sum('amount');
+            $debits = (float) (clone $txQuery)->where('type', 'debit')->sum('amount');
+        }
+
+        return round($bonusCredits + $credits - $debits, 2);
     }
     private function getEarningBalance(int $memberId, string $userId): float
     {
@@ -871,7 +944,12 @@ class MemberController extends Controller
     private function rwTableIdColumn(string $table, int $memberId, string $userId): array
     {
         if (Schema::hasColumn($table, 'user_id')) {
-            return ['user_id', $userId];
+            $columnType = Schema::getColumnType($table, 'user_id');
+            $numericTypes = ['bigint', 'integer', 'int', 'mediumint', 'smallint', 'tinyint', 'decimal', 'float'];
+
+            return in_array(strtolower($columnType), $numericTypes, true)
+                ? ['user_id', $memberId]
+                : ['user_id', $userId];
         }
 
         return ['member_id', $memberId];

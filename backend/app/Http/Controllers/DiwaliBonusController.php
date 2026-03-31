@@ -43,7 +43,8 @@ class DiwaliBonusController extends Controller
         $data = $query->get()->map(function ($bonus) {
             $historyDate = $bonus->calculated_at ?? $bonus->created_at;
             $targetBusiness = round((float) $bonus->total_lapsed_pv, 2);
-            $earnedAmount = round(($targetBusiness * self::BONUS_PERCENTAGE) / 100, 2);
+            $bonusPercentage = round((float) ($bonus->bonus_percentage ?? self::BONUS_PERCENTAGE), 2);
+            $earnedAmount = round((float) ($bonus->bonus_amount ?? (($targetBusiness * $bonusPercentage) / 100)), 2);
             $memberStep = max((int) ($bonus->member->package_step ?? 0), (int) ($bonus->member->step_level ?? 0));
             $isIdActive4Step = (int) ($bonus->member->status ?? 0) === 1 && $memberStep >= self::REQUIRED_STEP;
 
@@ -53,7 +54,7 @@ class DiwaliBonusController extends Controller
                 "date" => $historyDate ? $historyDate->format('Y-m-d') : null,
                 "festival_year" => $bonus->bonus_year,
                 "lapsed_matching_turnover" => $targetBusiness,
-                "percentage" => self::BONUS_PERCENTAGE,
+                "percentage" => $bonusPercentage,
                 "earned" => $earnedAmount,
                 "id_active_4_step" => $isIdActive4Step,
                 "matching_turnover_exists" => $targetBusiness > 0,

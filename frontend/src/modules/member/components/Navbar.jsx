@@ -2,8 +2,34 @@ import { LuPanelLeftDashed } from "react-icons/lu";
 import { MdSupervisorAccount } from "react-icons/md";
 import { useEffect, useState } from "react";
 import { FiMenu } from "react-icons/fi";
+import { useLocation } from "react-router-dom";
 
-export default function Navbar({ pageTitle = "Dashboard" }) {
+function toTitleCaseFromPath(pathname) {
+  const cleanPath = String(pathname || "")
+    .replace(/^\/member\/?/, "")
+    .replace(/^\//, "");
+
+  if (!cleanPath || cleanPath === "dashboard") {
+    return "Dashboard";
+  }
+
+  const words = cleanPath.split("-").filter(Boolean);
+
+  return words
+    .map((word) => {
+      const lower = word.toLowerCase();
+
+      if (lower === "kyc") return "KYC";
+      if (lower === "id") return "ID";
+
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}
+
+export default function Navbar({ pageTitle }) {
+  const location = useLocation();
+  const resolvedPageTitle = pageTitle || toTitleCaseFromPath(location.pathname);
 
   const [stats, setStats] = useState({
     left_members: 0,
@@ -49,7 +75,7 @@ export default function Navbar({ pageTitle = "Dashboard" }) {
 
   return (
 
-    <header className="h-16 bg-white border-b flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-gray-300 flex items-center justify-between px-6">
 
       {/* Left */}
       <div className="flex items-center gap-3">
@@ -65,7 +91,7 @@ export default function Navbar({ pageTitle = "Dashboard" }) {
         <div>
         <h1 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
           <LuPanelLeftDashed />
-          {pageTitle}
+          {resolvedPageTitle}
         </h1>
 
         <p className="text-xs text-gray-400">

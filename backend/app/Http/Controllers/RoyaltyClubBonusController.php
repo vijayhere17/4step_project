@@ -18,7 +18,7 @@ class RoyaltyClubBonusController extends Controller
     private const MIN_STEP_LEVEL = 4;
     private const MIN_MONTHLY_PURCHASE = 500;
     private const MIN_DIRECT_REFERRALS = 6;
-    private const MIN_DIRECT_REFERRAL_PV = 1000;
+    private const MIN_DIRECT_REFERRAL_PV = 0;
 
     public function index(Request $request)
     {
@@ -351,39 +351,35 @@ class RoyaltyClubBonusController extends Controller
 
     private function resolveQualifiedDirectReferralCount(int $sponsorMemberId, Carbon $periodStart, Carbon $periodEnd): int
     {
-        if (!Schema::hasTable('members') || !Schema::hasTable('pv_matchings')) {
+        if (!Schema::hasTable('members')) {
             return 0;
         }
+
+        $sponsor = Member::query()->find($sponsorMemberId);
+        if (!$sponsor || empty($sponsor->activation_date)) {
+            return 0;
+        }
+
+        $activationStart = Carbon::parse($sponsor->activation_date)->startOfDay();
+        $activationDeadline = $activationStart->copy()->addDays(30)->endOfDay();
 
         $directMembers = Member::query()
             ->where('sponsor_id', $sponsorMemberId)
             ->where('status', 1)
             ->get();
 
-        $eligibleDirectIds = $directMembers
+        return (int) $directMembers
             ->filter(function (Member $member) {
                 return $this->resolveMemberStep($member) >= self::MIN_STEP_LEVEL;
             })
-            ->pluck('id')
-            ->all();
+            ->filter(function (Member $member) use ($activationStart, $activationDeadline) {
+                if (empty($member->activation_date)) {
+                    return false;
+                }
 
-        if (empty($eligibleDirectIds)) {
-            return 0;
-        }
-
-        return (int) DB::table('pv_matchings')
-            ->whereIn('member_id', $eligibleDirectIds)
-            ->where(function ($query) use ($periodStart, $periodEnd) {
-                $query->whereBetween('match_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-                    ->orWhere(function ($subQuery) use ($periodStart, $periodEnd) {
-                        $subQuery->whereNull('match_date')
-                            ->whereBetween('created_at', [$periodStart->toDateTimeString(), $periodEnd->toDateTimeString()]);
-                    });
+                $directActivationDate = Carbon::parse($member->activation_date);
+                return $directActivationDate->betweenIncluded($activationStart, $activationDeadline);
             })
-            ->groupBy('member_id')
-            ->havingRaw('SUM(COALESCE(matched_pv, 0)) >= ?', [self::MIN_DIRECT_REFERRAL_PV])
-            ->select('member_id')
-            ->get()
             ->count();
     }
 
@@ -422,7 +418,7 @@ class RoyaltyClubBonusController extends Controller
             'matching_bv_active' => $hasMatchingBv,
             'qualified_direct_referrals' => $qualifiedDirectCount,
             'direct_referral_rule_met' => $hasQualifiedDirects,
-            'eligible' => $isStepEligible && $hasPurchase && $hasMatchingBv && $hasQualifiedDirects,
+            'eligible' => $isStepEligible && $hasPurchase && $hasQualifiedDirects,
         ];
     }
 }
