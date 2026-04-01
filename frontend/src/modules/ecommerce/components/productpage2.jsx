@@ -279,12 +279,12 @@ function ProductPage2() {
                     <h2 className=" text-xl font-semibold  mb-2 ">
                         Related Reads
                     </h2>
-                    <div className="grid grid-cols-3 items-center gap-4 mt-4 rounded">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-center gap-4 mt-4 rounded">
                         <div className="flex items-start gap-3 mt-4">
                             <img
-                                src="/images/ecom/related1.png"
+                                src="./images/related1.png"
                                 alt="product"
-                                className="w-30 h-30 rounded object-cover"
+                                className="w-24 h-24 sm:w-[7.5rem] sm:h-[7.5rem] rounded object-cover"
                             />
                             <div className=" flex-1">
                                 <p className="font-semibold">
@@ -299,9 +299,9 @@ function ProductPage2() {
                         </div>
                          <div className="flex items-start gap-3 mt-4">
                             <img
-                                src="/images/ecom/related2.png"
+                                src="./images/related2.png"
                                 alt="product"
-                                className="w-30 h-30 rounded object-cover"
+                                className="w-24 h-24 sm:w-[7.5rem] sm:h-[7.5rem] rounded object-cover"
                             />
                             <div className=" flex-1 ">
                                 <p className="font-semibold">
@@ -316,9 +316,9 @@ function ProductPage2() {
                         </div> 
                         <div className="flex items-start gap-3 mt-4">
                             <img
-                                src="/images/ecom/related3.png"
+                                src="./images/related3.png"
                                 alt="product"
-                                className="w-30 h-30 rounded object-cover"
+                                className="w-24 h-24 sm:w-[7.5rem] sm:h-[7.5rem] rounded object-cover"
                             />
                             <div className=" flex-1">
                                 <p className="font-semibold">

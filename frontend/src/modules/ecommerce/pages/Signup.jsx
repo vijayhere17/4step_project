@@ -6,6 +6,8 @@ import { FaLocationPin } from "react-icons/fa6";
 import { BsFillTelephoneFill } from "react-icons/bs";
 import { MdEmail } from "react-icons/md";
 import { MdHome } from "react-icons/md";
+import { TbPasswordUser } from "react-icons/tb";
+import api from "../api/axios";
 
 function Signup() {
 
@@ -22,6 +24,8 @@ function Signup() {
         mobileNo: "",
         email: "",
         address: "",
+        password: "",
+        confirmPassword: "",
         hasUplineId: false,
         agreeTerms: false,
         ageConfirmed: false,
@@ -29,10 +33,7 @@ function Signup() {
 
     const [errors, setErrors] = useState({});
 
-    const generateMemberId = () => {
-    const random = Math.floor(100000 + Math.random() * 900000);
-    return "4STEP" + random;
-};
+
     const validateForm = () => {
         const newErrors = {};
 
@@ -73,6 +74,19 @@ function Signup() {
             if (age < 18) {
                 newErrors.dob = "You must be at least 18 years old";
             }
+        }
+        // Password validation
+        if (!formData.password.trim()) {
+            newErrors.password = "Password is required";
+        } else if (formData.password.length < 6) {
+            newErrors.password = "Password must be at least 6 characters";
+        }
+
+        // Confirm Password validation
+        if (!formData.confirmPassword.trim()) {
+            newErrors.confirmPassword = "Confirm Password is required";
+        } else if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = "Passwords do not match";
         }
 
         // Gender validation
@@ -144,56 +158,62 @@ function Signup() {
         }));
     };
 
-    const handleSubmit = (e) => {
-    e.preventDefault();
+    const [loading, setLoading] = useState(false);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-    if (validateForm()) {
+        if (validateForm()) {
+            try {
+                setLoading(true);
+                const dataToSend = {
+                    ...formData,
+                    password_confirmation: formData.confirmPassword
+                };
 
-        const memberId = generateMemberId();
+                const response = await api.post("/signup", dataToSend);
 
-        const userData = {
-            memberId,
-            ...formData
-        };
+                const generatedMemberId = response.data.data.member_id;
 
-        // get existing users
-        const existingUsers =
-            JSON.parse(localStorage.getItem("users")) || [];
 
-        existingUsers.push(userData);
+                alert(`Sign up successful!\nMember ID: ${generatedMemberId}`);
+                navigate("/");
 
-        localStorage.setItem("users", JSON.stringify(existingUsers));
+            } catch (error) {
+                console.log(error.response?.data);
 
-        alert("Sign up successful!\nYour Member ID: " + memberId);
-
-        navigate("/");
-    }
-};
-
+                if (error.response?.data?.errors) {
+                    alert("Validation error");
+                } else {
+                    alert("Server error");
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
 
     return (
-        <div className='min-h-screen bg-[#f5e6d3]  flex items-center justify-center p-8'>
-            <div className="bg-gray-200 w-full max-w-md rounded-xl shadow-xl overflow-hidden p-4">
-                <div className=" p-2 overflow-hidden rounded-xl text-center mb-4 bg-[#8b5e3c]">
-                    <h1 className='text-3xl font-semibold text-white '>Sign up</h1>
+        <div className='min-h-screen bg-[#f5e6d3] flex items-center justify-center p-3 sm:p-4 md:p-8'>
+            <div className="bg-gray-200 w-full max-w-lg rounded-xl shadow-xl overflow-hidden p-3 sm:p-4">
+                <div className="p-2 overflow-hidden rounded-xl text-center mb-4 bg-[#8b5e3c]">
+                    <h1 className='text-2xl sm:text-3xl font-semibold text-white'>Sign up</h1>
                 </div>
-               
+
                 <form onSubmit={handleSubmit}>
- {/* Personal Details */}                    
-                    <div className="bg-white p-4 overflow-hidden rounded-xl text-center mb-4">
+                    {/* Personal Details */}
+                    <div className="bg-white p-3 sm:p-4 overflow-hidden rounded-xl text-center mb-4">
                         <h2 className='text-xs font-semibold text-gray-500 text-start'>
                             Personal Details as per KYC Documents*
                         </h2>
-                        <div className="grid md:grid-cols-2 gap-6 mb-3 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3 mt-2">
                             <div>
                                 <div className="flex items-center border-b ">
-                                    <GoPersonFill className="text-gray-400 mr-3" />
+                                    <GoPersonFill className="text-gray-400 mr-3 flex-shrink-0" />
                                     <select
                                         name="title"
                                         value={formData.title}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 focus:outline-none text-xs ${errors.title ? "text-red-500 " : "text-gray-400"
-                                            }`}
+                                        className="w-full outline-none py-2 focus:outline-none text-xs"
                                     >
                                         <option value="">Select Title</option>
                                         <option value="Mr.">Mr.</option>
@@ -203,64 +223,100 @@ function Signup() {
                                         <option value="Mrs.">Mrs.</option>
                                     </select>
                                 </div>
-                                {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+                                {errors.title && <p className="text-red-500 text-xs mt-1 text-start">{errors.title}</p>}
                             </div>
                             <div>
                                 <div className="flex items-center border-b">
-                                    <GoPersonFill className="text-gray-400 mr-3 " />
+                                    <GoPersonFill className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="text"
                                         name="firstName"
                                         placeholder="First Name"
                                         value={formData.firstName}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.firstName ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
+                                {errors.firstName && <p className="text-red-500 text-xs mt-1 text-start">{errors.firstName}</p>}
                             </div>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-6 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3">
                             <div>
                                 <div className="flex items-center border-b">
-                                    <GoPersonFill className="text-gray-400 mr-3" />
+                                    <GoPersonFill className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="text"
                                         name="lastName"
                                         placeholder="Last Name"
                                         value={formData.lastName}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.lastName ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
+                                {errors.lastName && <p className="text-red-500 text-xs mt-1 text-start">{errors.lastName}</p>}
                             </div>
                             <div>
                                 <div className="flex items-center border-b">
-                                    <FaCalendar className="text-gray-400 mr-3" />
+                                    <FaCalendar className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="date"
                                         name="dob"
                                         value={formData.dob}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.dob ? "text-red-500 " : "text-gray-700"
+                                        className="w-full outline-none py-2 text-xs"
+                                    />
+                                </div>
+                                {errors.dob && <p className="text-red-500 text-xs mt-1 text-start">{errors.dob}</p>}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3">
+                            <div>
+                                <div className="flex items-center border-b">
+                                    <TbPasswordUser className="text-gray-400 mr-3 flex-shrink-0" />
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        placeholder="Password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className={`w-full outline-none py-2 text-xs ${errors.password ? "text-red-500" : "text-gray-700"
+                                        }`}
+                                    />
+                                </div>
+                                {errors.password && (
+                                    <p className="text-red-500 text-xs mt-1 text-start">
+                                        {errors.password}
+                                    </p>
+                                )}
+                            </div>
+                            <div>
+                                <div className="flex items-center border-b">
+                                    <TbPasswordUser className="text-gray-400 mr-3 flex-shrink-0" />
+                                    <input
+                                        type="password"
+                                        name="confirmPassword"
+                                        placeholder="Confirm Password"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        className={`w-full outline-none py-2 text-xs ${errors.confirmPassword ? "text-red-500" : "text-gray-700"
                                             }`}
                                     />
                                 </div>
-                                {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
+                                {errors.confirmPassword && (
+                                    <p className="text-red-500 text-xs mt-1 text-start">
+                                        {errors.confirmPassword}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div>
                             <div className="flex items-center border-b">
-                                <GoPersonFill className="text-gray-400 mr-3" />
+                                <GoPersonFill className="text-gray-400 mr-3 flex-shrink-0" />
                                 <select
                                     name="gender"
                                     value={formData.gender}
                                     onChange={handleChange}
-                                    className={`w-full outline-none py-2 text-xs ${errors.gender ? "text-red-500 " : "text-gray-400"
-                                        }`}
+                                    className="w-full outline-none py-2 text-xs"
                                 >
                                     <option value="">Select Gender</option>
                                     <option value="Male">Male</option>
@@ -268,182 +324,161 @@ function Signup() {
                                     <option value="Others">Others</option>
                                 </select>
                             </div>
-                            {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
+                            {errors.gender && <p className="text-red-500 text-xs mt-1 text-start">{errors.gender}</p>}
                         </div>
                     </div>
-{/* Address Details */}
-                    <div className="bg-white p-4 overflow-hidden rounded-xl text-center mb-4">
+                    {/* Address Details */}
+                    <div className="bg-white p-3 sm:p-4 overflow-hidden rounded-xl text-center mb-4">
                         <h2 className='text-xs font-semibold text-gray-500 text-start'>
                             Permenant Address Details as per KYC Documents*
                         </h2>
                         <div className="flex items-center border-b mb-2">
-                            <FaLocationPin className="text-gray-400 mr-3 text-xs" />
+                            <FaLocationPin className="text-gray-400 mr-3 text-xs flex-shrink-0" />
                             <p className="py-2 text-sm">India</p>
                         </div>
                         <div>
                             <div className="flex items-center border-b">
-                                <FaLocationPin className="text-gray-400 mr-3 text-xs" />
+                                <FaLocationPin className="text-gray-400 mr-3 text-xs flex-shrink-0" />
                                 <input
                                     type="text"
                                     name="pinCode"
                                     placeholder="Pin Code"
                                     value={formData.pinCode}
                                     onChange={handleChange}
-                                    className={`w-full outline-none py-2 text-xs ${errors.pinCode ? "text-red-500 " : "text-gray-700"
-                                        }`}
+                                    className="w-full outline-none py-2 text-xs"
                                 />
                             </div>
-                            {errors.pinCode && <p className="text-red-500 text-xs mt-1">{errors.pinCode}</p>}
+                            {errors.pinCode && <p className="text-red-500 text-xs mt-1 text-start">{errors.pinCode}</p>}
                         </div>
-                        <div className="grid md:grid-cols-2 gap-6 mb-3 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3 mt-2">
                             <div>
                                 <div className="flex items-center border-b ">
-                                    <FaLocationPin className="text-gray-400 mr-3 text-xs" />
+                                    <FaLocationPin className="text-gray-400 mr-3 text-xs flex-shrink-0" />
                                     <input
                                         type="text"
                                         name="state"
                                         placeholder="State"
                                         value={formData.state}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.state ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
+                                {errors.state && <p className="text-red-500 text-xs mt-1 text-start">{errors.state}</p>}
                             </div>
                             <div>
                                 <div className="flex items-center border-b">
-                                    <GoPersonFill className="text-gray-400 mr-3 " />
+                                    <GoPersonFill className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="text"
                                         name="city"
                                         placeholder="City"
                                         value={formData.city}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.city ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+                                {errors.city && <p className="text-red-500 text-xs mt-1 text-start">{errors.city}</p>}
                             </div>
                         </div>
-                        <div className="grid md:grid-cols-2 gap-6 mb-3 mt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-3 mt-2">
                             <div>
                                 <div className="flex items-center border-b ">
-                                    <BsFillTelephoneFill className="text-gray-400 mr-3 " />
+                                    <BsFillTelephoneFill className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="text"
                                         name="mobileNo"
                                         placeholder="Mobile No"
                                         value={formData.mobileNo}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.mobileNo ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.mobileNo && <p className="text-red-500 text-xs mt-1">{errors.mobileNo}</p>}
+                                {errors.mobileNo && <p className="text-red-500 text-xs mt-1 text-start">{errors.mobileNo}</p>}
                             </div>
                             <div>
                                 <div className="flex items-center border-b">
-                                    <MdEmail className="text-gray-400 mr-3 " />
+                                    <MdEmail className="text-gray-400 mr-3 flex-shrink-0" />
                                     <input
                                         type="email"
                                         name="email"
                                         placeholder="Email"
                                         value={formData.email}
                                         onChange={handleChange}
-                                        className={`w-full outline-none py-2 text-xs ${errors.email ? "text-red-500 " : "text-gray-700"
-                                            }`}
+                                        className="w-full outline-none py-2 text-xs"
                                     />
                                 </div>
-                                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                                {errors.email && <p className="text-red-500 text-xs mt-1 text-start">{errors.email}</p>}
                             </div>
                         </div>
 
                         <div>
                             <div className="flex items-center border-b">
-                                <MdHome className="text-gray-400 mr-3" />
+                                <MdHome className="text-gray-400 mr-3 flex-shrink-0" />
                                 <input
                                     type="text"
                                     name="address"
                                     placeholder="Address(House Number,Street Name,Locality)"
                                     value={formData.address}
                                     onChange={handleChange}
-                                    className={`w-full outline-none py-2 text-xs ${errors.address ? "text-red-500 " : "text-gray-700"
-                                        }`}
+                                    className="w-full outline-none py-2 text-xs"
                                 />
                             </div>
-                            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                            {errors.address && <p className="text-red-500 text-xs mt-1 text-start">{errors.address}</p>}
                         </div>
                     </div>
-{/* Terms & Conditions */}
-                    <div className="bg-white p-6 rounded-lg shadow mb-4">
-                        <label className=" text-sm inline-flex font-semibold">
-                            <input
-                                type="checkbox"
-                                name="hasUplineId"
-                                checked={formData.hasUplineId}
-                                onChange={handleChange}
-                                className="mr-3"
-                            />
-                            Do you have an Upline ID or Referral Code?
-                        </label>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow space-y-3 ">
+                    {/* Terms & Conditions */}
+                    <div className="bg-white p-4 sm:p-6 rounded-lg shadow space-y-3">
                         <div>
-                            <label className={`text-sm inline-flex font-semibold ${errors.agreeTerms ? "text-red-600" : "text-red-600"
+                            <label className={`text-xs sm:text-sm inline-flex font-semibold ${errors.agreeTerms ? "text-red-600" : "text-red-600"
                                 }`}>
                                 <input
                                     type="checkbox"
                                     name="agreeTerms"
                                     checked={formData.agreeTerms}
                                     onChange={handleChange}
-                                    className="mr-3"
+                                    className="mr-3 flex-shrink-0"
                                 />
-                                I have read & agree to the <span className="underline underline-offset-2 ml-1 "> Terms and Conditions*</span>
+                                <span>I have read & agree to the <span className="underline underline-offset-2 ml-1">Terms and Conditions*</span></span>
                             </label>
-                            {errors.agreeTerms && <p className="text-red-500 text-xs mt-1">{errors.agreeTerms}</p>}
+                            {errors.agreeTerms && <p className="text-red-500 text-xs mt-1 text-start">{errors.agreeTerms}</p>}
                         </div>
 
                         <div>
-                            <label className={`text-sm flex items-start font-semibold ${errors.ageConfirmed ? "text-red-600" : "text-red-600"
+                            <label className={`text-xs sm:text-sm flex items-start font-semibold ${errors.ageConfirmed ? "text-red-600" : "text-red-600"
                                 }`}>
                                 <input
                                     type="checkbox"
                                     name="ageConfirmed"
                                     checked={formData.ageConfirmed}
                                     onChange={handleChange}
-
-                                    className="mr-3 mt-1 flex"
+                                    className="mr-3 mt-1 flex-shrink-0"
                                 />
-                                I am atleast 18 years old (21 years in case of domicile being Maharashtra) and citizen of India
+                                <span>I am atleast 18 years old (21 years in case of domicile being Maharashtra) and citizen of India</span>
                             </label>
-                            {errors.ageConfirmed && <p className="text-red-500 text-xs mt-1">{errors.ageConfirmed}</p>}
+                            {errors.ageConfirmed && <p className="text-red-500 text-xs mt-1 text-start">{errors.ageConfirmed}</p>}
                         </div>
                     </div>
-{/* Button */}
+                    {/* Button */}
                     <div className="text-center mb-4 mt-4">
                         <button
                             type="submit"
-                            className=" bg-[#8b5e3c] text-white px-15 py-2 rounded-lg text-sm hover:bg-blue-800 transition"
+                            disabled={loading}
+                            className={`text-white px-12 sm:px-15 py-2 rounded-lg text-xs sm:text-sm w-full sm:w-auto ${loading ? "bg-[#8b5e3c] cursor-not-allowed" : "bg-[#8b5e3c] hover:bg-[#6f472d]"}`}
                         >
-                            Sign Up
+                            {loading ? "Submitting..." : "Submit"}
                         </button>
 
-                        <div className="mt-4 text-sm">
+                        <div className="mt-4 text-xs sm:text-sm">
                             Already Have an Account?
-                            <Link to="/" className="text-blue-700 ml-2 cursor-pointer ">
+                            <Link to="/" className="text-blue-700 ml-2 cursor-pointer">
                                 Sign In
                             </Link>
                         </div>
-
                     </div>
                 </form>
 
-            </div>
-
-        </div>
+            </div >
+        </div >
     );
 }
 

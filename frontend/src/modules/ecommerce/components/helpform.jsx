@@ -94,25 +94,25 @@ function Helpform() {
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-10">
+    <div className="min-h-screen bg-white px-3 sm:px-4 md:px-6 py-4 sm:py-10">
       <div className="max-w-5xl mx-auto">
 
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-xs sm:text-sm text-gray-500 mb-4">
           Home &gt; Help &gt; New Ticket
         </p>
 
-        <h1 className="text-2xl font-semibold mb-2">How can we help?</h1>
-        <p className="text-sm text-gray-700 font-semibold mb-8">
+        <h1 className="text-xl sm:text-2xl font-semibold mb-2">How can we help?</h1>
+        <p className="text-xs sm:text-sm text-gray-700 font-semibold mb-6 sm:mb-8">
           Need assistance with your order or interested in joining Team Tira?
           Submit a ticket here. Have you looked at our{" "}
           <span className="text-red-500 cursor-pointer">FAQs</span>?
         </p>
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-xs sm:text-sm font-medium mb-1">
                 Mobile Number<span className="text-red-500">*</span>
               </label>
               <input
@@ -122,13 +122,13 @@ function Helpform() {
                 placeholder='+91 9913198655'
                 pattern="[0-9]{10}"
                 onChange={handleChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 text-sm"
               />
               {formErrors.mobile && <p className="text-red-500 text-xs">{formErrors.mobile}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-xs sm:text-sm font-medium mb-1">
                 Email<span className="text-red-500">*</span>
               </label>
               <input
@@ -136,20 +136,20 @@ function Helpform() {
                 name="email"
                 placeholder='example@gmail.com'
                 onChange={handleChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 text-sm"
               />
               {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs sm:text-sm font-medium mb-1">
               Category<span className="text-red-500">*</span>
             </label>
             <select
               name="category"
               onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2"
+              className="w-full border rounded-md px-3 py-2 text-sm"
             >
               <option>Select Category</option>
               <option>Order Issue</option>
@@ -161,45 +161,45 @@ function Helpform() {
 
 
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs sm:text-sm font-medium mb-1">
               Subject<span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="subject"
               onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2"
+              className="w-full border rounded-md px-3 py-2 text-sm"
             />
             {formErrors.subject && <p className="text-red-500 text-xs">{formErrors.subject}</p>}
           </div>
 
 
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs sm:text-sm font-medium mb-1">
               Share details here<span className="text-red-500">*</span>
             </label>
             <textarea
               rows="4"
               name="details"
               onChange={handleChange}
-              className="w-full border rounded-md px-3 py-2 resize-none"
+              className="w-full border rounded-md px-3 py-2 resize-none text-sm"
             />
             {formErrors.details && <p className="text-red-500 text-xs">{formErrors.details}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-xs sm:text-sm font-medium mb-2">
               Upload Image (Optional)
             </label>
 
             <div
               onClick={handleFileClick}
-              className="border rounded-md px-4 py-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50"
+              className="border rounded-md px-3 sm:px-4 py-4 sm:py-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50"
             >
-              <span className="text-sm font-medium text-gray-600">
+              <span className="text-xs sm:text-sm font-medium text-gray-600 text-center">
                 Click to upload or drag and drop
               </span>
-              <span className="text-xs text-gray-500">PNG, JPG, JPEG (Max 2MB)</span>
+              <span className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG (Max 2MB)</span>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -219,19 +219,19 @@ function Helpform() {
               <img
                 src={imagePreview}
                 alt="Preview"
-                className="mt-4 max-h-48 object-contain border rounded"
+                className="mt-4 max-h-40 sm:max-h-48 object-contain border rounded"
               />
             )}
 
             <div className="mt-2 bg-yellow-100 text-xs px-3 py-2 rounded text-center">
               <LiaInfoCircleSolid className="inline text-lg text-red-600 mr-2" />
-              Upload clear images of Product & Packaging Box in PNG, JPG, JPEG format only
+              <span>Upload clear images of Product & Packaging Box in PNG, JPG, JPEG format only</span>
             </div>
           </div>
 
           <button
             type="submit"
-            className="bg-gray-700 text-white px-6 py-2 rounded-md hover:bg-gray-600"
+            className="w-full sm:w-auto bg-gray-700 text-white px-6 py-2 rounded-md hover:bg-gray-600 text-sm"
           >
             Submit
           </button>

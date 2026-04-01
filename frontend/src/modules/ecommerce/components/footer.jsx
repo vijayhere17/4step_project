@@ -5,16 +5,18 @@ import { Link } from "react-router-dom";
 function Footer() {
   return (
     <footer className="bg-[#0e1b2a] text-gray-300">
-      <div className="max-w-7xl mx-auto px-6 py-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14">
     
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-          <div>
-            <img
-              src="/images/ecom/4steplogo.png"
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10">
+          <div className="col-span-1 sm:col-span-2 md:col-span-1">
+           <Link to='/home'>
+            <img 
+              src="./images/ecom/4steplogo.png"
               alt="4step"
-              className="h-15 mb-4"
+              className="h-12 sm:h-15 mb-4"
             />
-            <p className="text-sm text-gray-400 mb-6">
+            </Link>
+            <p className="text-xs sm:text-sm text-gray-400 mb-6">
               Result-oriented products designed to enhance
               every aspect of your daily life.
             </p>
@@ -32,11 +34,11 @@ function Footer() {
             </div>
           </div>
 
-          <div className="md:col-span-3">
-            <div className="grid grid-cols-1 sm:grid-cols-4  md:justify-items-center">              
+          <div className="col-span-1 sm:col-span-2 md:col-span-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">              
               <div>
-                <h4 className="text-white font-semibold mb-4">Company</h4>
-                <nav className="flex flex-col space-y-3 text-sm">
+                <h4 className="text-white font-semibold mb-4 text-xs sm:text-sm">Company</h4>
+                <nav className="flex flex-col space-y-2 sm:space-y-3 text-xs sm:text-sm">
                   <Link to='/home' className="hover:text-white cursor-pointer">Home</Link>
                   <Link to='/allproduct' className="hover:text-white cursor-pointer">Products</Link>
                   <Link to='/helpform' className="hover:text-white cursor-pointer">Contact</Link>
@@ -44,8 +46,8 @@ function Footer() {
               </div>
 
               <div>
-                <h4 className="text-white font-semibold mb-4">Products</h4>
-                <nav className="flex flex-col space-y-3 text-sm">
+                <h4 className="text-white font-semibold mb-4 text-xs sm:text-sm">Products</h4>
+                <nav className="flex flex-col space-y-2 sm:space-y-3 text-xs sm:text-sm">
                   <a className="hover:text-white cursor-pointer">Health Care</a>
                   <a className="hover:text-white cursor-pointer">Personal Care</a>
                   <a className="hover:text-white cursor-pointer">Beauty Care</a>
@@ -54,23 +56,21 @@ function Footer() {
               </div>
 
               <div>
-                <h4 className="text-white font-semibold mb-4">Support</h4>
-                <nav className="flex flex-col space-y-3 text-sm">
-                  <a className="hover:text-white cursor-pointer">Sign In</a>
-                  <a className="hover:text-white cursor-pointer">Sign Up</a>
-                  <a className="hover:text-white cursor-pointer">Help Centre</a>
+                <h4 className="text-white font-semibold mb-4 text-xs sm:text-sm">Support</h4>
+                <nav className="flex flex-col space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                  <Link to='/login' className="hover:text-white cursor-pointer">Sign In</Link>
+                  <Link to='/signup' className="hover:text-white cursor-pointer">Sign Up</Link>
+                  <Link to='/helpform' className="hover:text-white cursor-pointer">Help Centre</Link>
                 </nav>
               </div>
 
               <div>
-                <h4 className="text-white font-semibold mb-4">Customer Policies</h4>
-                <nav className="flex flex-col space-y-3 text-sm">
-                  <a className="hover:text-white cursor-pointer">Terms & Conditions</a>
-                  <a className="hover:text-white cursor-pointer">Fee & Payments</a>
-                  <a className="hover:text-white cursor-pointer">Cancellation & Refund</a>
-                  <a className="hover:text-white cursor-pointer">Shipping & Delivery</a>
-
-
+                <h4 className="text-white font-semibold mb-4 text-xs sm:text-sm">Customer Policies</h4>
+                <nav className="flex flex-col space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                  <Link to='/terms' className="hover:text-white cursor-pointer">Terms & Conditions</Link>
+                  <Link to='/returnpolicy' className="hover:text-white cursor-pointer">Return Policy</Link>
+                  <Link to='/paymentterms' className="hover:text-white cursor-pointer">Payment Policy</Link>
+                  <Link to='/shippingpolicy' className="hover:text-white cursor-pointer">Shipping & Delivery</Link>
                 </nav>
               </div>
 
@@ -79,18 +79,18 @@ function Footer() {
 
         </div>
 
-        <div className="border-t border-gray-700 mt-10 mb-6"></div>
+        <div className="border-t border-gray-700 mt-8 sm:mt-10 mb-6"></div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-gray-300">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-gray-300">
           <p>© 2026 4step. All rights reserved.</p>
 
-          <div className="flex gap-6">
-            <span className="hover:text-white cursor-pointer">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+            <Link to='/privacypolicy' className="hover:text-white cursor-pointer">
               Privacy Policy
-            </span>
-            <span className="hover:text-white cursor-pointer">
+            </Link>
+            <Link to='/terms' className="hover:text-white cursor-pointer">
               Terms of Service
-            </span>
+            </Link>
           </div>
         </div>
 

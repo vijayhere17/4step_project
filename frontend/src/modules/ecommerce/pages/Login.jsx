@@ -1,28 +1,25 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import api from "../api/axios";
+
 function Login() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    mobile: "",
+    mobile_no: "",
     password: "",
   });
 
   const [errors, setErrors] = useState({});
 
-  const demoUsers = [
-    { mobile: "9876543210", password: "1234321" },
-    { mobile: "8866217613", password: "1234321" },
-  ];
-
   const validate = () => {
     let newErrors = {};
 
-    if (!/^[6-9]\d{9}$/.test(formData.mobile)) {
-      newErrors.mobile = "Enter valid 10 digit mobile number";
+    if (!formData.mobile_no.trim()) {
+      newErrors.mobile_no = "Mobile Number is required";
     }
 
-    if (formData.password.length < 6) {
+    if (!formData.password || formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
 
@@ -30,48 +27,60 @@ function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
 
-    const user = demoUsers.find(
-      (u) =>
-        u.mobile === formData.mobile &&
-        u.password === formData.password
-    );
+    try {
+      setLoading(true);
+      const res = await api.post("/login", formData);
 
-    if (user) {
+      alert("Login successful ✅");
+
       localStorage.setItem("isAuth", "true");
+      localStorage.setItem("user", JSON.stringify(res.data.data));
+
       navigate("/home");
-    } else {
-      alert("Invalid mobile number or password ❌");
+
+    } catch (error) {
+      console.log(error.response?.data);
+      alert("Invalid Mobile Number or Password ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f5e6d3] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f5e6d3] flex items-center justify-center p-3 sm:p-4 md:p-8">
       <div className="bg-white w-full max-w-md rounded-xl shadow-xl overflow-hidden">
 
-        <div className="bg-[#8b5e3c] text-white text-center py-4 font-semibold text-2xl">
-          User Login
+        <div className="text-center py-6">
+          <img
+            src="/images/ecom/4steplogo.png"
+            className="mx-auto h-16 mb-3"
+            alt="4step logo"
+          />
+          <h2 className="text-3xl font-bold text-gray-800">Welcome Back!</h2>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
           <form className="space-y-4" onSubmit={handleSubmit}>
 
             <input
               type="text"
               placeholder="Mobile Number"
-              value={formData.mobile}
+              value={formData.mobile_no || ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  mobile_no: e.target.value
                 })
               }
-              className="w-full border px-4 py-3 rounded-lg focus:ring-2 focus:ring-[#8b5e3c]"
+              className="w-full border px-4 py-3 rounded-lg focus:ring-2 focus:ring-[#8b5e3c] text-sm"
             />
-            {errors.mobile && <p className="text-red-500 text-xs">{errors.mobile}</p>}
+            {errors.mobile_no && <p className="text-red-500 text-xs">{errors.mobile_no}</p>}
 
             <input
               type="password"
@@ -80,22 +89,23 @@ function Login() {
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
-              className="w-full border px-4 py-3 rounded-lg focus:ring-2 focus:ring-[#8b5e3c]"
+              className="w-full border px-4 py-3 rounded-lg focus:ring-2 focus:ring-[#8b5e3c] text-sm"
             />
             {errors.password && <p className="text-red-500 text-xs">{errors.password}</p>}
 
             <button
               type="submit"
-              className="w-full bg-[#8b5e3c] text-white py-3 rounded-lg hover:bg-[#6f472d]"
+              disabled={loading}
+              className={`w-full text-white py-3 rounded-lg text-sm font-semibold ${loading ? "bg-[#8b5e3c] cursor-not-allowed" : "bg-[#8b5e3c] hover:bg-[#6f472d]"}`}
             >
-              LOGIN
+              {loading ? "Logging in..." : "Login"}
             </button>
           </form>
 
           <p className="text-center text-sm font-semibold text-gray-500">
             New here?{" "}
-            <Link to="/signup" className="text-[#8b5e3c] font-semibold">
-              Sign Up
+            <Link to="/signup" className="text-[#8b5e3c] font-semibold hover:underline">
+              Create Account
             </Link>
           </p>
         </div>

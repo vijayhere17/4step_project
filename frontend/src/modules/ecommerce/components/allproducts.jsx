@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { FaStar, FaHeart } from "react-icons/fa";
-import MemberModal from "../components/membermodal";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 function AllProducts() {
 
-    const [showModal, setShowModal] = useState(false);
+    
     const [current, setCurrent] = useState(0);
     const images = [
-        "/images/ecom/Banner2.png",
-        "https://images.unsplash.com/photo-1520975916090-3105956dac38",
-        "/images/ecom/Banner2.png",
-        "https://images.unsplash.com/photo-1520975916090-3105956dac38",
-        "/images/ecom/Banner2.png",
-        "https://images.unsplash.com/photo-1512436991641-6745cdb1723f",
+        "./images/ecom/Banner2.png",
+        "./images/ecom/Banner.jpg",
+        "./images/ecom/Banner2.png",
+        "./images/ecom/Banner.jpg",
+        "./images/ecom/Banner2.png",
+        "./images/ecom/Banner.jpg",
     ];
 
     useEffect(() => {
@@ -23,84 +24,34 @@ function AllProducts() {
         return () => clearInterval(timer);
     }, [images.length]);
 
-    const viralProducts = [
-        {
-            brand: "WishCare",
-            title: "Wishcare Hair Growth Serum Concentrate. In-Vivo",
-            price: "₹679",
-            oldPrice: "₹999",
-            discount: "32% Off",
-            image: "/images/ecom/vproduct1.jpg",
-        },
-        {
-            brand: "WishCare",
-            title: "Beauty of Joseon Relief Sun Aqua-fresh",
-            price: "₹1275",
-            oldPrice: "₹1500",
-            discount: "15% Off",
-            image: "/images/ecom/vproduct2.jpg",
-        },
-        {
-            brand: "Beauty of Joseon",
-            title: "Relief Sun Aqua-fresh Rice + B5 Korean",
-            price: "₹1275",
-            oldPrice: "₹1500",
-            discount: "15% Off",
-            image: "/images/ecom/vproduct3.jpg",
-        },
-        {
-            brand: "Beauty of Joseon",
-            title: "Relief Sun Aqua-fresh Rice + B5 Korean",
-            price: "₹1275",
-            oldPrice: "₹1500",
-            discount: "15% Off",
-            image: "/images/ecom/vproduct4.jpg",
-        },
-        {
-            brand: "WishCare",
-            title: "Wishcare Hair Growth Serum Concentrate. In-Vivo",
-            price: "₹679",
-            oldPrice: "₹999",
-            discount: "32% Off",
-            image: "/images/ecom/vproduct1.jpg",
-        },
-        {
-            brand: "WishCare",
-            title: "Beauty of Joseon Relief Sun Aqua-fresh",
-            price: "₹1275",
-            oldPrice: "₹1500",
-            discount: "15% Off",
-            image: "/images/ecom/vproduct2.jpg",
-        },
-        {
-            brand: "Beauty of Joseon",
-            title: "Relief Sun Aqua-fresh Rice + B5 Korean",
-            price: "₹1275",
-            oldPrice: "₹1500",
-            discount: "15% Off",
-            image: "/images/ecom/vproduct3.jpg",
-        },
-    ];
+    const [Products, setProducts] = useState([]);
+
+    const navigate = useNavigate();
+
+    const handleWhishlist = () => {
+        alert("Item added to wishlist");
+    };
+
+    useEffect(() => {
+        axios.get("http://127.0.0.1:8000/api/products")
+            .then(res => setProducts(res.data));
+    }, []);
+
+    const handleAddToBag = (item) => {
+        const cartData = {
+            ...item,
+            qty: 1 // default qty
+        };
+
+        localStorage.setItem("cartProduct", JSON.stringify(cartData));
+
+        navigate("/checkout"); // ✅
+    };
 
     return (
-        <div className="min-h-screen bg-white px-4 py-4">
-            <div className="W-full mx-auto">
-                <nav className="flex gap-9 text-gray-700 mb-4 text-sm font-medium justify-start ml-2 ">
-                    <a href="#" className="cursor-pointer hover:text-blue-600">What's New</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Health Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Skin Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Personal Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Beauty Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Home Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Oral Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Child Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Agri Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Life Care</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Minis</a>
-                    <a href="#" className="cursor-pointer hover:text-blue-600">Homegrown</a>
-                </nav>
-
-                <div className="bg-blue-100 rounded-t-lg text-center text-sm py-2">
+        <div className="min-h-screen bg-white px-3 sm:px-4 md:px-6 py-4">
+            <div className="max-w-7xl mx-auto">
+                <div className="bg-blue-100 rounded-t-lg text-center text-xs sm:text-sm py-3 px-3">
                     Enjoy up to ₹2000 off. Use code:{" "}
                     <span className="font-semibold">BIGSALE26</span>
                 </div>
@@ -110,74 +61,82 @@ function AllProducts() {
                         <img
                             src={images[current]}
                             alt="Sale"
-                            className="w-full h-120 object-cover transition-all duration-700"
+                            className="w-full h-48 sm:h-80 lg:h-120 object-contain sm:object-cover transition-all duration-700"
                         />
                     </div>
                 </div>
-{/* All Product Section */}
-                <div className="px-6 mt-4">
-                    <h2 className="text-2xl font-semibold  mb-8">
-                        Viral Hits You'll Love
-                    </h2>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
-                        {viralProducts.map((product, index) => (
-                            <div
-                                key={index}
-                                className="flex flex-col group cursor-pointer"
-                            >
-                                <div className="relative rounded overflow-hidden">
-                                    <img
-                                        src={product.image}
-                                        alt={product.title}
-                                        className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
-                                    />
-                                    <FaHeart className="absolute top-3 right-3 text-gray-300 text-sm cursor-pointer" />
-                                </div>
-
-                                <div className="mt-3">
-                                    <div className="flex items-center gap-2 mb-1 text-sm">
-                                        <p className="font-medium text-gray-400">
-                                            {product.brand}
-                                        </p>
-                                        <FaStar className="text-green-600 text-xs ml-3" />
-                                        <span className="font-medium text-gray-700">4.4</span>
-                                        <span className="text-gray-500 text-xs">| 2.8K</span>
-                                    </div>
-
-                                    <p className="text-sm text-gray-700 mb-2 font-semibold leading-tight line-clamp-2">
-                                        {product.title}
-                                    </p>
-
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                                        {product.price}
-                                        <span className="text-xs text-gray-400 line-through font-normal">
-                                            {product.oldPrice}
-                                        </span>
-                                        <span className="text-xs text-green-600 font-medium">
-                                            ({product.discount})
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <button
-                                    className="mt-3 bg-black text-white text-sm py-2 rounded
-                                            opacity-0 translate-y-2
-                                            group-hover:opacity-100 group-hover:translate-y-0
-                                            transition-all duration-300"
-                                    onClick={() => setShowModal(true)}
-                                >
-                                    Add to Bag
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-{/* Member Modal */}                
-                <MemberModal
-                    isOpen={showModal}
-                    onClose={() => setShowModal(false)}
+                <div className="section-wrapper mt-8 sm:mt-10 ">
+                                    <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
+                                     Products
+                                    </h2>
+                
+                                    {/* ✅ 5 Column Responsive Grid */}
+                                    <div className=" px-0 sm:px-4 md:px-6
+                                        grid 
+                                        grid-cols-2 
+                                        sm:grid-cols-3 
+                                        md:grid-cols-4 
+                                        lg:grid-cols-5 
+                                        gap-4 sm:gap-5 md:gap-6
+                                    ">
+                                        {Products.map((item, index) => (
+                                            <div key={index} className="flex flex-col group cursor-pointer">
+                
+                                                {/* Image */}
+                                                <div className="relative rounded overflow-hidden bg-white">
+                                                   <img
+                  src={item.image}
+                  alt="Product"
+                  onClick={() => navigate(`/product/${item.id}`)} // ✅ added
+                  className="w-full h-32 sm:h-36 md:h-40 object-contain transition-transform duration-300 group-hover:scale-105"
                 />
+                                                    <FaHeart
+                                                        className="absolute top-2 right-2 text-gray-300 text-xs sm:text-sm cursor-pointer"
+                                                        onClick={handleWhishlist}
+                                                    />
+                                                </div>
+                
+                                                {/* Content */}
+                                                <div className="mt-2 sm:mt-3">
+                                                    <p className="text-xs sm:text-sm font-medium text-gray-400">
+                                                        {item.brand}
+                                                    </p>
+                
+                                                    <p className="text-xs sm:text-sm text-gray-700 mb-1 sm:mb-2 font-semibold leading-tight line-clamp-2">
+                                                        {item.name}
+                                                    </p>
+                
+                                                    <div className="text-xs sm:text-sm font-semibold text-gray-800">
+                                                        ₹{item.price}
+                                                    </div>
+                                                </div>
+                
+                                                {/* Button */}
+                                                <button
+                                                    className="
+                                                    mt-2 sm:mt-3 
+                                                    bg-black text-white 
+                                                    text-xs sm:text-sm 
+                                                    py-1.5 sm:py-2 
+                                                    rounded
+                
+                                                    opacity-100 sm:opacity-0
+                                                    translate-y-0 sm:translate-y-2
+                
+                                                    sm:group-hover:opacity-100 
+                                                    sm:group-hover:translate-y-0
+                
+                                                    transition-all duration-300"
+                                                    onClick={() => handleAddToBag(item)}
+                                                >
+                                                    Add to Bag
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                
+                                </div>
+                
 
             </div>
         </div>

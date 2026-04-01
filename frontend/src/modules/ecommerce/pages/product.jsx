@@ -5,7 +5,7 @@ function Product() {
     return ( 
         <>
         <ProductPage />
-        <ProductPage2 />
+        {/* <ProductPage2 /> */}
         </>
     )
 }

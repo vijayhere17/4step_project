@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\DiwaliBonusController;
 use App\Http\Controllers\RoyaltyClubBonusController;
@@ -18,6 +19,30 @@ use App\Http\Controllers\EarningBalanceController;
 use App\Http\Controllers\RankRewardController;
 use App\Http\Controllers\TravelClubBonusController;
 use App\Http\Controllers\AdminProductController;
+
+
+use App\Http\Controllers\api\MemberControllerecom;
+use App\Http\Controllers\api\ProductController;
+use App\Http\Controllers\api\OrderController;
+
+// API routes for  ecommerce member operations (stateless, no CSRF)
+Route::get('/orders/{member_id}', [OrderController::class, 'userOrders']);
+Route::get('/orders', [OrderController::class, 'index']);
+Route::post('/place-order', [OrderController::class, 'store']);
+
+Route::get('/products/category/{id}', [ProductController::class, 'productsByCategory']);
+Route::get('/product/{id}', [ProductController::class, 'show']);
+Route::get('/categories', [ProductController::class, 'categories']);
+Route::get('/viral-products', [ProductController::class, 'viralProducts']);
+Route::get('/products', [ProductController::class, 'allProducts']);
+
+Route::post('/login', [MemberControllerecom::class, 'login']);
+Route::post('/signup', [MemberControllerecom::class, 'store']);
+Route::put('/members/{id}', [MemberControllerecom::class, 'update']);
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
 
 
 // API routes for member operations (stateless, no CSRF)

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-function MemberModal({ isOpen, onClose }) {
+function MemberModal({ isOpen, onClose, selectedProduct }) {
     const navigate = useNavigate();
 
     const [showMemberInput, setShowMemberInput] = useState(false);
@@ -23,6 +23,7 @@ function MemberModal({ isOpen, onClose }) {
             return;
         }
 
+        localStorage.setItem("cartProduct", JSON.stringify(selectedProduct));
         navigate("/checkout", { state: { memberId } });
 
         resetAndClose();
@@ -61,7 +62,8 @@ function MemberModal({ isOpen, onClose }) {
 
                             <button
                                 onClick={() => {
-                                    navigate("/checkout");
+                                    localStorage.setItem("cartProduct", JSON.stringify(selectedProduct));
+                                    navigate("/product");
                                     resetAndClose();
                                 }}
                                 className="bg-gray-200 px-4 py-2 rounded"
