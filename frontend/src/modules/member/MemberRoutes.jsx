@@ -32,6 +32,7 @@ import Inbox from "./pages/Inbox";
 import Outbox from "./pages/Outbox";
 import Compose from "./pages/Compose";
 import IncomeSummary from "./pages/IncomeSummary";
+import IncomeReport from "./pages/IncomeReport";
 import WelcomeLetter from "./pages/WelcomeLetter";
 import RoyaltyCertificate from "./pages/RoyaltyCertificate";
 import RoyaltyStatus from "./pages/RoyaltyStatus";
@@ -60,6 +61,8 @@ export default function MemberRoutes() {
         <Route path="builtup-tree" element={<BuiltupTree />} />
         <Route path="referral-branch" element={<ReferralBranch />} />
         <Route path="referral-promoters" element={<ReferralPromoters />} />
+        <Route path="left-downline" element={<RightLeftDownline side="left" />} />
+        <Route path="right-downline" element={<RightLeftDownline side="right" />} />
         <Route path="left-right-downline" element={<RightLeftDownline />} />
         <Route path="matching-status" element={<MatchingStatus />} />
         <Route path="repurchase-status" element={<RepurchaseStatus />} />
@@ -88,6 +91,7 @@ export default function MemberRoutes() {
           element={<EarningBalanceWithdrawal />}
         />
         <Route path="income-summary" element={<IncomeSummary />} />
+        <Route path="income-report" element={<IncomeReport />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="outbox" element={<Outbox />} />
         <Route path="compose" element={<Compose />} />

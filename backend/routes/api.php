@@ -19,6 +19,7 @@ use App\Http\Controllers\EarningBalanceController;
 use App\Http\Controllers\RankRewardController;
 use App\Http\Controllers\TravelClubBonusController;
 use App\Http\Controllers\AdminProductController;
+use App\Http\Controllers\IncomeReportController;
 
 
 use App\Http\Controllers\api\MemberControllerecom;
@@ -52,6 +53,7 @@ Route::post('member/check-sponsor', [MemberController::class, 'checkSponsor']);
 Route::post('member/internal-add', [MemberController::class, 'internalAdd']);
 Route::get('/member/dashboard', [MemberController::class, 'dashboard']);
 Route::get('member/dashboard-stats', [MemberController::class, 'dashboardStats']);
+Route::get('member/active-team', [MemberController::class, 'activeTeam']);
 Route::post('member/activate-package', [MemberController::class, 'activatePackage']);
 Route::get('member/consistency-status', [RepurchaseWalletStatusController::class, 'index']);
 Route::get('member/repurchase-status', [LoyaltyBonusController::class, 'repurchaseStatus']);
@@ -61,6 +63,7 @@ Route::get('/member/tree', [MemberController::class, 'tree']);
 Route::get('member/profile', [MemberController::class, 'profile']);
 Route::put('member/profile', [MemberController::class, 'updateProfile']);
 Route::get('member/income-summary', [IncomeSummaryController::class, 'index']);
+Route::get('member/income-report', [IncomeReportController::class, 'index']);
 Route::get('member/earning-balance-withdrawal', [EarningBalanceController::class, 'withdrawal']);
 Route::get('member/earning-balance-history', [EarningBalanceController::class, 'history']);
 Route::get('member/kyc', [MemberController::class, 'getKyc']);

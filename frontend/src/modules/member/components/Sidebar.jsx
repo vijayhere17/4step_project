@@ -75,13 +75,16 @@ export default function Sidebar() {
   const isMyReferralPromoter =
     location.pathname === "/member/referral-promoters";
   const isReferralBranch = location.pathname === "/member/referral-branch";
-  const isLeftRightDownline =
+  const isLeftDownline =
+    location.pathname === "/member/left-downline" ||
     location.pathname === "/member/left-right-downline";
+  const isRightDownline = location.pathname === "/member/right-downline";
   const isPortfolioSection =
     isBuiltupTree ||
     isMyReferralPromoter ||
     isReferralBranch ||
-    isLeftRightDownline;
+    isLeftDownline ||
+    isRightDownline;
 
   // Portfolio Details Routes
   const isMatchingStatus = location.pathname === "/member/matching-status";
@@ -139,8 +142,9 @@ export default function Sidebar() {
   const isEarningWithdrawalReport =
     location.pathname === "/member/withdrawal-report";
   const isIncomeSummary = location.pathname === "/member/income-summary";
+  const isIncomeReport = location.pathname === "/member/income-report";
   const isEarningBalanceSection =
-    isEarningHistory || isEarningWithdrawalReport || isIncomeSummary;
+    isEarningHistory || isEarningWithdrawalReport || isIncomeSummary || isIncomeReport;
 
   // Mail box
   const isCompose = location.pathname === "/member/compose";
@@ -357,14 +361,24 @@ export default function Sidebar() {
                   Referral Branch
                 </Link>
                 <Link
-                  to="/member/left-right-downline"
+                  to="/member/left-downline"
                   className={`block px-2 py-1 rounded ${
-                    isLeftRightDownline
+                    isLeftDownline
                       ? "bg-blue-100 text-blue-600"
                       : "hover:bg-blue-50"
                   }`}
                 >
-                  Left-Right Downline
+                  Left Downline
+                </Link>
+                 <Link
+                  to="/member/right-downline"
+                  className={`block px-2 py-1 rounded ${
+                    isRightDownline
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Right Downline
                 </Link>
               </div>
             )}
@@ -578,7 +592,7 @@ export default function Sidebar() {
                       : "hover:bg-blue-50"
                   }`}
                 >
-                  Loyalty Repurchase Bonus
+                  Repurchase Bonus
                 </Link>
 
                 <Link
@@ -678,6 +692,16 @@ export default function Sidebar() {
                 >
                   Income Summary
                 </Link>
+                <Link
+                  to="/member/income-report"
+                  className={`block px-2 py-1 rounded ${
+                    isIncomeReport
+                      ? "bg-blue-100 text-blue-600"
+                      : "hover:bg-blue-50"
+                  }`}
+                >
+                  Income Report
+                </Link>
               </div>
             )}
           </div>
@@ -729,7 +753,7 @@ export default function Sidebar() {
               </div>
             )}
           </div>
-          <Link
+          {/* <Link
             to="/member/products"
             className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${
               isProducts ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100"
@@ -738,7 +762,7 @@ export default function Sidebar() {
             <span className="flex items-center ">
               <MdProductionQuantityLimits className="mr-2 text-[25px]" /> Products
             </span>
-          </Link>
+          </Link> */}
           <Link
             to="/member/downloads"
             className="p-3 rounded-lg hover:bg-gray-100 cursor-pointer flex items-center justify-between"

@@ -110,7 +110,7 @@ const RepurchaseBonus = () => {
             <div className="p-8 bg-gray-100 min-h-screen">
 
             <h1 className="text-3xl font-bold text-[#B0422E] text-center mb-8">
-             Loyalty Repurchase Bonus
+             Repurchase Bonus
             </h1>
             {isLoading && <p className="text-center text-gray-500 mb-4">Loading bonuses...</p>}
             {error && <p className="text-center text-red-500 mb-4">{error}</p>}

@@ -22,5 +22,8 @@ class MyKyc extends Model
         'aadhar_number',
         'pan_number',
         'otp_verified',
+        'transaction_password_hash',
+        'transaction_password_status',
+        'transaction_password_checked_at',
     ];
 }

@@ -3,7 +3,13 @@ import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { requestMemberApi } from "../utils/apiClient";
 
-import { FaLink, FaIndianRupeeSign, FaUsers, FaUserCheck, FaCodeBranch } from "react-icons/fa6";
+import {
+  FaLink,
+  FaIndianRupeeSign,
+  FaUsers,
+  FaUserCheck,
+  FaCodeBranch,
+} from "react-icons/fa6";
 import { FiCopy } from "react-icons/fi";
 import { LuWallet } from "react-icons/lu";
 import { BsCart } from "react-icons/bs";
@@ -17,6 +23,7 @@ const ACTIVATION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const DEFAULT_STATS = {
   total_team: 0,
+  total_register_team: 0,
   total_active_team: 0,
   total_manager_left: 0,
   total_manager_right: 0,
@@ -26,8 +33,48 @@ const DEFAULT_STATS = {
   repurchase_balance: 0,
   consistency_balance: 0,
   earning_balance: 0,
+  daily_earn: 0,
   direct_id: 0,
   direct_branch: 0,
+};
+
+const STEP_DETAILS = {
+  1: {
+    step: 1,
+    pv: 125,
+    per_cycle_capping: 500,
+    daily_capping: 1000,
+  },
+  2: {
+    step: 2,
+    pv: 250,
+    per_cycle_capping: 1000,
+    daily_capping: 2000,
+  },
+  3: {
+    step: 3,
+    pv: 500,
+    per_cycle_capping: 2000,
+    daily_capping: 4000,
+  },
+  4: {
+    step: 4,
+    pv: 1000,
+    per_cycle_capping: 5000,
+    daily_capping: 10000,
+  },
+  5: {
+    step: 5,
+    pv: 2000,
+    per_cycle_capping: 10000,
+    daily_capping: 20000,
+  },
+  6: {
+    step: 6,
+    pv: 4000,
+    per_cycle_capping: 20000,
+    daily_capping: 40000,
+  },
 };
 
 function getStoredMemberData() {
@@ -97,7 +144,9 @@ function formatCurrency(value) {
 
 function StatCard({ title, amount, note, icon, color }) {
   return (
-    <div className={`p-6 rounded-xl text-white shadow ${color}`}>
+    <div
+      className={`p-6 rounded-xl text-white shadow ${color} h-full min-h-60 flex flex-col`}
+    >
       <div className="flex justify-between items-start">
         <div className="bg-white/20 w-14 h-14 rounded-xl flex items-center justify-center text-2xl">
           {icon}
@@ -105,8 +154,65 @@ function StatCard({ title, amount, note, icon, color }) {
       </div>
 
       <h3 className="text-lg opacity-90 mt-4">{title}</h3>
-      <h2 className="text-4xl font-bold mt-1">{amount}</h2>
-      <p className="text-sm opacity-80 mt-1">{note}</p>
+      <h2 className="text-4xl font-bold mt-2 wrap-break-word">{amount}</h2>
+      <p className="text-sm opacity-80 mt-2">{note}</p>
+    </div>
+  );
+}
+
+function IdPositionCard({ step, dailyEarn, icon, color }) {
+  const safeStep = Math.min(Math.max(toNumber(step), 0), 6);
+  const stepInfo = STEP_DETAILS[safeStep];
+
+  return (
+    <div
+      className={`p-6 rounded-xl text-white shadow ${color} h-full min-h-60 flex flex-col`}
+    >
+      <div className="flex justify-between items-start">
+        <div className="bg-white/20 w-14 h-14 rounded-xl flex items-center justify-center text-2xl">
+          {icon}
+        </div>
+      </div>
+
+      <h3 className="text-lg opacity-90 mt-4">ID Position Step</h3>
+
+      <div className="mt-4 flex items-stretch gap-4 flex-1">
+        <div className="w-1/2 flex flex-col justify-center">
+          <p className="text-sm opacity-80">Current step position</p>
+          <h2 className="text-4xl font-bold mt-1">
+            {safeStep > 0 ? `${safeStep} Step` : "N/A"}
+          </h2>
+        </div>
+
+        <div className="w-px bg-white/30" />
+
+        <div className="w-1/2 flex flex-col justify-center gap-3 text-sm">
+          {stepInfo ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <span className="opacity-80">PV</span>
+                <span className="font-semibold text-right">{stepInfo.pv} PV</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="opacity-80">Per Cycle</span>
+                <span className="font-semibold text-right">
+                  {formatCurrency(stepInfo.per_cycle_capping)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="opacity-80">Daily Earn</span>
+                <span className="font-semibold text-right">
+                  {formatCurrency(dailyEarn)}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm opacity-80">No step activated yet</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -173,8 +279,10 @@ export default function Dashboard() {
         const updatedMember = {
           ...memberData,
           ...data,
-          selected_package_id: data.selected_package_id ?? memberData?.selected_package_id,
-          selected_package_step: data.selected_package_step ?? memberData?.selected_package_step,
+          selected_package_id:
+            data.selected_package_id ?? memberData?.selected_package_id,
+          selected_package_step:
+            data.selected_package_step ?? memberData?.selected_package_step,
           package_step: data.package_step ?? memberData?.package_step,
           step_level: data.step_level ?? memberData?.step_level,
           current_step: data.current_step ?? memberData?.current_step,
@@ -230,15 +338,24 @@ export default function Dashboard() {
 
         setStats({
           total_team: toNumber(data.total_team),
+          total_register_team: toNumber(
+            data.total_register_team ?? data.total_team
+          ),
           total_active_team: toNumber(data.total_active_team),
           total_manager_left: toNumber(data.total_manager_left),
           total_manager_right: toNumber(data.total_manager_right),
-          id_position_step: toNumber(data.id_position_step),
+          id_position_step: toNumber(
+            data.id_position_step ||
+              data.package_step ||
+              data.step_level ||
+              data.current_step
+          ),
           leadership_rank: data.leadership_rank || "N/A",
           rank_with_reward: data.rank_with_reward || "N/A",
           repurchase_balance: toNumber(data.repurchase_balance),
           consistency_balance: toNumber(data.consistency_balance),
           earning_balance: toNumber(data.earning_balance),
+          daily_earn: toNumber(data.daily_earn),
           direct_id: toNumber(data.direct_id),
           direct_branch: toNumber(data.direct_branch),
         });
@@ -275,9 +392,16 @@ export default function Dashboard() {
       color: "bg-[linear-gradient(90deg,#3483D2,#2262A1)]",
     },
     {
-      title: "Total Register Active Team",
+      title: "Total Register Team",
+      amount: stats.total_register_team,
+      note: "Registered members in your team",
+      icon: <FaUsers />,
+      color: "bg-[linear-gradient(90deg,#45B0D7,#268CB1)]",
+    },
+    {
+      title: "Total Active Team",
       amount: stats.total_active_team,
-      note: "Active members in your team",
+      note: "Active registered team members",
       icon: <FaUserCheck />,
       color: "bg-[linear-gradient(90deg,#45B0D7,#268CB1)]",
     },
@@ -289,9 +413,8 @@ export default function Dashboard() {
       color: "bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]",
     },
     {
-      title: "ID Position Step",
-      amount: stats.id_position_step,
-      note: "Current step",
+      type: "id_position",
+      step: stats.id_position_step || memberStep,
       icon: <HiOutlineDocumentText />,
       color: "bg-[linear-gradient(90deg,#B74331,#8A3225)]",
     },
@@ -330,9 +453,6 @@ export default function Dashboard() {
       icon: <FaIndianRupeeSign />,
       color: "bg-[linear-gradient(90deg,#2DA5D2,#2874BE)]",
     },
-  ];
-
-  const bottomCards = [
     {
       title: "Direct ID",
       amount: stats.direct_id,
@@ -384,16 +504,20 @@ export default function Dashboard() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
-            {topCards.map((card) => (
-              <StatCard key={card.title} {...card} />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-            {bottomCards.map((card) => (
-              <StatCard key={card.title} {...card} />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-6 items-stretch">
+            {topCards.map((card, index) =>
+              card.type === "id_position" ? (
+                <IdPositionCard
+                  key={`id-position-${index}`}
+                  step={card.step}
+                  dailyEarn={stats.daily_earn}
+                  icon={card.icon}
+                  color={card.color}
+                />
+              ) : (
+                <StatCard key={card.title} {...card} />
+              )
+            )}
           </div>
         </div>
       </div>

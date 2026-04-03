@@ -5,6 +5,74 @@ import Navbar from "../components/Navbar";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
+const normalizeReviewStatus = (status) => {
+  const normalized = String(status || "process").toLowerCase().trim();
+
+  if (["success", "approved", "approve", "accepted"].includes(normalized)) {
+    return "success";
+  }
+
+  if (["reject", "rejected", "failed", "deny", "denied"].includes(normalized)) {
+    return "reject";
+  }
+
+  return "process";
+};
+
+const formatReviewStatusLabel = (status) => {
+  const normalized = normalizeReviewStatus(status);
+
+  if (normalized === "success") {
+    return "Success";
+  }
+
+  if (normalized === "reject") {
+    return "Rejected";
+  }
+
+  return "Processing";
+};
+
+const getReviewStatusCard = (status) => {
+  const normalized = normalizeReviewStatus(status);
+
+  if (normalized === "success") {
+    return {
+      title: "KYC Approved Successfully",
+      subtitle: "Your bank and KYC details have been verified.",
+      titleClass: "text-green-600",
+    };
+  }
+
+  if (normalized === "reject") {
+    return {
+      title: "KYC Rejected",
+      subtitle: "Your bank or KYC details need to be corrected and resubmitted.",
+      titleClass: "text-red-600",
+    };
+  }
+
+  return {
+    title: "KYC Under Review",
+    subtitle: "Your bank and KYC details are being checked by admin.",
+    titleClass: "text-yellow-600",
+  };
+};
+
+const getStatusMessageClass = (status) => {
+  const normalized = normalizeReviewStatus(status);
+
+  if (normalized === "success") {
+    return "text-green-600";
+  }
+
+  if (normalized === "reject") {
+    return "text-red-600";
+  }
+
+  return "text-yellow-600";
+};
+
 export default function KYC() {
   const [step, setStep] = useState(1); // 1 = Bank Info, 2 = KYC Details
   const [isBankReadOnly, setIsBankReadOnly] = useState(false);
@@ -12,6 +80,7 @@ export default function KYC() {
   const [bankPassbookFile, setBankPassbookFile] = useState(null);
   const [aadhaarCardFile, setAadhaarCardFile] = useState(null);
   const [panCardFile, setPanCardFile] = useState(null);
+  const [transactionPasswordStatus, setTransactionPasswordStatus] = useState("process");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -26,6 +95,7 @@ export default function KYC() {
     branch_name: "",
     aadhar_number: "",
     pan_number: "",
+    transaction_password: "",
   });
 
   useEffect(() => {
@@ -65,6 +135,9 @@ export default function KYC() {
         }
 
         const kycData = data?.kyc || data;
+        setTransactionPasswordStatus(
+          normalizeReviewStatus(data?.transaction_password_status || kycData?.transaction_password_status || "process"),
+        );
 
         if (kycData?.id) {
           setIsBankReadOnly(true);
@@ -78,6 +151,7 @@ export default function KYC() {
             branch_name: kycData.branch_name || "",
             aadhar_number: kycData.aadhar_number || "",
             pan_number: kycData.pan_number || "",
+            transaction_password: "",
           });
         }
       } catch {
@@ -170,6 +244,11 @@ export default function KYC() {
       return;
     }
 
+    if (!form.transaction_password) {
+      setError("Please enter transaction password");
+      return;
+    }
+
     if (!isIdentityReadOnly && (!aadhaarCardFile || !panCardFile)) {
       setError("Please upload Aadhaar and PAN card photos");
       return;
@@ -208,7 +287,20 @@ export default function KYC() {
         return;
       }
 
-      setMessage("KYC saved successfully");
+      const latestReviewStatus = normalizeReviewStatus(
+        data?.transaction_password_status || data?.kyc?.transaction_password_status || transactionPasswordStatus,
+      );
+
+      setTransactionPasswordStatus(latestReviewStatus);
+
+      if (latestReviewStatus === "success") {
+        setMessage("KYC approved successfully");
+      } else if (latestReviewStatus === "reject") {
+        setMessage("KYC rejected. Please correct details and resubmit.");
+      } else {
+        setMessage("KYC submitted successfully and is under review.");
+      }
+
       setIsBankReadOnly(true);
       setIsIdentityReadOnly(true);
       setStep(3);
@@ -233,7 +325,11 @@ export default function KYC() {
           </h1>
           {isLoading && <p className="text-sm text-gray-500 mt-2">Loading KYC...</p>}
           {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-          {message && <p className="text-sm text-green-600 mt-2">{message}</p>}
+          {message && (
+            <p className={`text-sm mt-2 ${getStatusMessageClass(transactionPasswordStatus)}`}>
+              {message}
+            </p>
+          )}
 
           <div className="flex justify-center items-center mt-6 px-4">
             <div className="flex items-center text-xs sm:text-sm overflow-x-auto max-w-full pb-2">
@@ -395,23 +491,32 @@ export default function KYC() {
 
               </div>
 
-              <div className="text-center mt-8">
-                <button
-                  onClick={() => setMessage("OTP sent (demo)")}
-                  className="bg-[#B0422E] hover:bg-[#B0422E] text-white px-8 py-2 rounded-md"
-                >
-                  Send OTP
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-8">
+                <label className="sm:w-64 text-gray-600 font-bold">
+                  Transaction Password*
+                </label>
+                <input
+                  type="password"
+                  name="transaction_password"
+                  value={form.transaction_password}
+                  onChange={handleChange}
+                  placeholder="Enter transaction password"
+                  className="flex-1 border-b border-gray-300 outline-none py-1 focus:border-blue-600"
+                />
               </div>
 
-              <div className="flex justify-center gap-3 sm:gap-4 mt-8 flex-wrap">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <input
-                    key={i}
-                    maxLength="1"
-                    className="w-12 h-12 border border-gray-300 rounded-md text-center text-lg outline-none focus:border-blue-600"
-                  />
-                ))}
+              <div className="mt-4 text-center">
+                <span
+                  className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold ${
+                    transactionPasswordStatus === "success"
+                      ? "bg-green-100 text-green-700"
+                      : transactionPasswordStatus === "reject"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  KYC Review Status: {formatReviewStatusLabel(transactionPasswordStatus)}
+                </span>
               </div>
 
               <div className="text-center mt-8">
@@ -428,9 +533,20 @@ export default function KYC() {
 
           {step === 3 && (
             <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-              <h2 className="text-green-600 text-xl font-semibold">
-                KYC Submitted Successfully 🎉
-              </h2>
+              {(() => {
+                const reviewCard = getReviewStatusCard(transactionPasswordStatus);
+
+                return (
+                  <>
+                    <h2 className={`text-xl font-semibold ${reviewCard.titleClass}`}>
+                      {reviewCard.title}
+                    </h2>
+                    <p className="mt-3 text-sm text-gray-500">
+                      {reviewCard.subtitle}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           )}
 

@@ -269,6 +269,7 @@ class MemberController extends Controller
 
         $salesData = $this->getSalesData($memberId, $userId, $monthStart, $monthEnd);
         $leadershipRank = $this->getLeadershipRank($memberId, $userId);
+        $dailyEarn = $this->getDailyEarn($memberId, $userId);
 
         return response()->json([
             'data' => [
@@ -283,6 +284,7 @@ class MemberController extends Controller
             'repurchase_balance'  => $this->getPurchaseBalance($memberId, $userId),
             'consistency_balance' => $this->getConsistencyBalance($memberId, $userId),
             'earning_balance'     => $this->getEarningBalance($memberId, $userId),
+            'daily_earn'          => $dailyEarn,
             'direct_id'           => $this->getDirectIdCount($memberId),
             'direct_branch'       => $this->getDirectBranchCount($memberId),
 
@@ -295,6 +297,73 @@ class MemberController extends Controller
                 'commission_amount' => $this->getCommissionAmount($memberId, $userId, $monthStart, $monthEnd, $monthKey),
             ],
         ]);
+    }
+
+    public function activeTeam(Request $request)
+    {
+        $member = $this->getMemberFromHeader($request);
+
+        if (!$member) {
+            return response()->json(['message' => 'Member not found or missing header'], 401);
+        }
+
+        $memberId = (int) $member->id;
+        $limit = (int) $request->query('limit', 12);
+
+        // Get active downline members limited to 12
+        $activeMembers = $this->getActiveDownlineMembers($memberId, $limit);
+
+        return response()->json([
+            'data' => $activeMembers,
+            'count' => count($activeMembers),
+        ]);
+    }
+
+    private function getActiveDownlineMembers(int $memberId, int $limit = 12): array
+    {
+        $members = [];
+        $queue = [(int) $memberId];
+        $processed = [];
+
+        while (!empty($queue) && count($members) < $limit) {
+            $currentId = array_shift($queue);
+
+            if (in_array($currentId, $processed)) {
+                continue;
+            }
+
+            $processed[] = $currentId;
+
+            $children = Member::where('parent_id', $currentId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            foreach ($children as $child) {
+                if (count($members) >= $limit) {
+                    break;
+                }
+
+                if ((int) $child->status === 1) {
+                    $members[] = [
+                        'id' => $child->id,
+                        'user_id' => $child->user_id,
+                        'fullname' => $child->fullname,
+                        'name' => $child->fullname,
+                        'mobile_no' => $child->mobile_no,
+                        'status' => $child->status,
+                        'package_step' => $this->resolveMemberPackageStep($child),
+                        'step_level' => $this->resolveMemberPackageStep($child),
+                        'position' => $child->position,
+                        'created_at' => $child->created_at->toDateTimeString(),
+                    ];
+                }
+
+                // Add child to queue to process its descendants
+                $queue[] = $child->id;
+            }
+        }
+
+        return array_slice($members, 0, $limit);
     }
     public function activatePackage(Request $request)
     {
@@ -446,7 +515,19 @@ class MemberController extends Controller
             return response()->json(['message' => 'Member not found'], 404);
         }
 
-        return response()->json(MyKyc::where('member_id', $member->id)->first());
+        $kyc = MyKyc::where('member_id', $member->id)->first();
+
+        if (!$kyc) {
+            return response()->json([
+                'kyc' => null,
+                'transaction_password_status' => 'process',
+            ]);
+        }
+
+        return response()->json([
+            'kyc' => $kyc,
+            'transaction_password_status' => $kyc->transaction_password_status ?? 'process',
+        ]);
     }
     public function upsertKyc(Request $request)
     {
@@ -460,6 +541,7 @@ class MemberController extends Controller
             'branch_name'              => 'required|string',
             'aadhar_number'            => 'required|string',
             'pan_number'               => 'required|string',
+            'transaction_password'     => 'required|string|min:4',
         ]);
 
         if ($data['account_no'] !== $data['re_account_no']) {
@@ -474,22 +556,41 @@ class MemberController extends Controller
 
         $existing = MyKyc::where('member_id', $member->id)->first();
 
+        $transactionPasswordStatus = 'process';
+        $transactionPasswordHash = $existing ? ($existing->transaction_password_hash ?? null) : null;
+
+        if (!empty($transactionPasswordHash)) {
+            $transactionPasswordStatus = Hash::check($data['transaction_password'], $transactionPasswordHash)
+                ? 'success'
+                : 'reject';
+        } else {
+            $transactionPasswordHash = Hash::make($data['transaction_password']);
+            $transactionPasswordStatus = 'process';
+        }
+
         $kyc = MyKyc::updateOrCreate(
             ['member_id' => $member->id],
             [
                 'user_id'                  => $member->user_id,
-                'account_beneficiary_name' => $existing ? $existing->account_beneficiary_name : $data['account_beneficiary_name'],
-                'account_no'               => $existing ? $existing->account_no               : $data['account_no'],
-                'ifs_code'                 => $existing ? $existing->ifs_code                 : strtoupper($data['ifs_code']),
-                'bank_name'                => $existing ? $existing->bank_name                : $data['bank_name'],
-                'branch_name'              => $existing ? $existing->branch_name              : $data['branch_name'],
-                'aadhar_number'            => $existing ? $existing->aadhar_number            : $data['aadhar_number'],
-                'pan_number'               => $existing ? $existing->pan_number               : strtoupper($data['pan_number']),
+                'account_beneficiary_name' => $data['account_beneficiary_name'],
+                'account_no'               => $data['account_no'],
+                'ifs_code'                 => strtoupper($data['ifs_code']),
+                'bank_name'                => $data['bank_name'],
+                'branch_name'              => $data['branch_name'],
+                'aadhar_number'            => $data['aadhar_number'],
+                'pan_number'               => strtoupper($data['pan_number']),
                 'otp_verified'             => true,
+                'transaction_password_hash' => $transactionPasswordHash,
+                'transaction_password_status' => $transactionPasswordStatus,
+                'transaction_password_checked_at' => $transactionPasswordStatus === 'process' ? null : now(),
             ]
         );
 
-        return response()->json(['message' => 'KYC updated successfully', 'kyc' => $kyc]);
+        return response()->json([
+            'message' => 'KYC updated successfully',
+            'kyc' => $kyc,
+            'transaction_password_status' => $transactionPasswordStatus,
+        ]);
     }
     public function getIdCard(Request $request)
     {
@@ -929,6 +1030,34 @@ class MemberController extends Controller
             $this->getConsistencyBalance($memberId, $userId) + $this->getPurchaseBalance($memberId, $userId),
             2
         );
+    }
+    private function getDailyEarn(int $memberId, string $userId): float
+    {
+        if (!Schema::hasTable('group_builtup_bonuses')) {
+            return 0.0;
+        }
+
+        $query = DB::table('group_builtup_bonuses');
+
+        if (Schema::hasColumn('group_builtup_bonuses', 'member_id')) {
+            $query->where('member_id', $memberId);
+        } elseif (Schema::hasColumn('group_builtup_bonuses', 'user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        if (Schema::hasColumn('group_builtup_bonuses', 'cycle_date')) {
+            $query->whereDate('cycle_date', today()->toDateString());
+        }
+
+        $column = Schema::hasColumn('group_builtup_bonuses', 'payable_income')
+            ? 'payable_income'
+            : (Schema::hasColumn('group_builtup_bonuses', 'earned') ? 'earned' : null);
+
+        if ($column === null) {
+            return 0.0;
+        }
+
+        return round((float) $query->sum($column), 2);
     }
     private function getDirectIdCount(int $memberId): int
     {

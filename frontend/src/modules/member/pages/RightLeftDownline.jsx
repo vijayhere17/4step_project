@@ -68,12 +68,15 @@ const getActivationText = (member) => {
   return "Activated";
 };
 
-export default function ReferralLeftRight() {
+export default function ReferralLeftRight({ side }) {
   const { rows, isLoading, error } = useReferralDownline();
 
   const safeRows = Array.isArray(rows) ? rows : [];
   const leftData = safeRows.filter((row) => row.sponsored_side === "L");
   const rightData = safeRows.filter((row) => row.sponsored_side === "R");
+  const showSingleTable = side === "left" || side === "right";
+  const singleTableTitle = side === "left" ? "Left Associates" : "Right Associates";
+  const singleTableData = side === "left" ? leftData : rightData;
 
   return (
     <div className="flex flex-col lg:flex-row bg-gray-100 min-h-screen">
@@ -84,26 +87,38 @@ export default function ReferralLeftRight() {
 
         <div className="text-center mt-6">
           <h1 className="text-xl font-bold text-[#B0422E]">
-            Left-Right Downline
+            {showSingleTable ? singleTableTitle : "Left-Right Downline"}
           </h1>
         </div>
 
         <div className="p-6">
-          <div className="bg-white rounded-2xl shadow-sm p-6 grid grid-cols-1 xl:grid-cols-2 gap-6 font-medium">
+          <div
+            className={`bg-white rounded-2xl shadow-sm p-6 font-medium ${
+              showSingleTable ? "" : "grid grid-cols-1 xl:grid-cols-2 gap-6"
+            }`}
+          >
             {isLoading && (
-              <p className="xl:col-span-2 text-center text-gray-500">
+              <p className={`${showSingleTable ? "" : "xl:col-span-2"} text-center text-gray-500`}>
                 Loading downline...
               </p>
             )}
 
             {!isLoading && error && (
-              <p className="xl:col-span-2 text-center text-red-500">
+              <p className={`${showSingleTable ? "" : "xl:col-span-2"} text-center text-red-500`}>
                 {error}
               </p>
             )}
 
-            <Table title="Left Associates" data={leftData} />
-            <Table title="Right Associates" data={rightData} />
+            {!isLoading && !error && showSingleTable && (
+              <Table title={singleTableTitle} data={singleTableData} />
+            )}
+
+            {!isLoading && !error && !showSingleTable && (
+              <>
+                <Table title="Left Associates" data={leftData} />
+                <Table title="Right Associates" data={rightData} />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -122,8 +137,9 @@ function Table({ title, data = [] }) {
             <tr className="bg-[#B0422E] text-white">
               <th className="py-3 px-4 text-left rounded-l-xl">Date</th>
               <th className="py-3 px-4 text-left">ID</th>
-              <th className="py-3 px-4 text-left">State</th>
+              <th className="py-3 px-4 text-left">Name</th>
               <th className="py-3 px-4 text-left">City</th>
+              <th className="py-3 px-4 text-left">State</th>
               <th className="py-3 px-4 text-left rounded-r-xl">Activation</th>
             </tr>
           </thead>
@@ -135,9 +151,14 @@ function Table({ title, data = [] }) {
                   <td className="py-3 px-4">
                     {formatDate(member.created_at)}
                   </td>
-                  <td className="py-3 px-4">{member.user_id || "--"}</td>
-                  <td className="py-3 px-4">{member.state || "--"}</td>
+                  <td className="py-3 px-4">
+                    <div className="font-semibold text-gray-900">{member.user_id || "--"}</div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="text-gray-900">{member.fullname || member.name || "--"}</div>
+                  </td>
                   <td className="py-3 px-4">{member.city || "--"}</td>
+                  <td className="py-3 px-4">{member.state || "--"}</td>
                   <td className="py-3 px-4">
                     {getActivationText(member)}
                   </td>
@@ -145,7 +166,7 @@ function Table({ title, data = [] }) {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="text-center py-4 text-gray-500">
+                <td colSpan="6" className="text-center py-4 text-gray-500">
                   No Members Found
                 </td>
               </tr>
